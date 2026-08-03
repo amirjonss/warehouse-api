@@ -12,9 +12,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: StockMovementRepository::class)]
 #[ORM\Table(name: 'stock_movements')]
-#[ORM\Index(columns: ['batch_id'], name: 'idx_stock_movements_batch')]
-#[ORM\Index(columns: ['product_id', 'occurred_at'], name: 'idx_stock_movements_product_occurred')]
-#[ORM\Index(columns: ['doc_type', 'doc_id'], name: 'idx_stock_movements_doc')]
+#[ORM\Index(name: 'idx_stock_movements_batch', columns: ['batch_id'])]
+#[ORM\Index(name: 'idx_stock_movements_product_occurred', columns: ['product_id', 'occurred_at'])]
+#[ORM\Index(name: 'idx_stock_movements_doc', columns: ['doc_type', 'doc_id'])]
 #[ApiResource]
 #[Assert\Expression(
     'this.getType() === null || this.getQuantity() === null || '
@@ -56,10 +56,6 @@ class StockMovement
 
     #[ORM\Column(length: 255)]
     private ?string $docNumber = null;
-
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: true, unique: true)]
-    private ?self $reverses = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
@@ -165,18 +161,6 @@ class StockMovement
     public function setDocNumber(string $docNumber): static
     {
         $this->docNumber = $docNumber;
-
-        return $this;
-    }
-
-    public function getReverses(): ?self
-    {
-        return $this->reverses;
-    }
-
-    public function setReverses(?self $reverses): static
-    {
-        $this->reverses = $reverses;
 
         return $this;
     }
