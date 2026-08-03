@@ -1,0 +1,207 @@
+<?php
+
+namespace App\Entity;
+
+use ApiPlatform\Metadata\ApiResource;
+use App\Component\Core\Enums\MovementType;
+use App\Repository\StockMovementRepository;
+use DateTimeInterface;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+
+#[ORM\Entity(repositoryClass: StockMovementRepository::class)]
+#[ORM\Table(name: 'stock_movements')]
+#[ORM\Index(columns: ['batch_id'], name: 'idx_stock_movements_batch')]
+#[ORM\Index(columns: ['product_id', 'occurred_at'], name: 'idx_stock_movements_product_occurred')]
+#[ORM\Index(columns: ['doc_type', 'doc_id'], name: 'idx_stock_movements_doc')]
+#[ApiResource]
+#[Assert\Expression(
+    'this.getType() === null || this.getQuantity() === null || '
+    . '(this.getType().value === "in" && this.getQuantity() > 0) || '
+    . '(this.getType().value === "out" && this.getQuantity() < 0) || '
+    . '(this.getType().value === "writeoff" && this.getQuantity() < 0) || '
+    . '(this.getType().value === "adjust" && this.getQuantity() != 0)',
+    message: 'quantity sign must match movement type',
+)]
+class StockMovement
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
+    private ?int $id = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?DateTimeInterface $occurredAt = null;
+
+    #[ORM\Column(enumType: MovementType::class)]
+    private ?MovementType $type = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Product $product = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Batch $batch = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    private ?string $quantity = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $docType = null;
+
+    #[ORM\Column]
+    private ?int $docId = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $docNumber = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, unique: true)]
+    private ?self $reverses = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $createdBy = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $note = null;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getOccurredAt(): ?DateTimeInterface
+    {
+        return $this->occurredAt;
+    }
+
+    public function setOccurredAt(DateTimeInterface $occurredAt): static
+    {
+        $this->occurredAt = $occurredAt;
+
+        return $this;
+    }
+
+    public function getType(): ?MovementType
+    {
+        return $this->type;
+    }
+
+    public function setType(MovementType $type): static
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function getProduct(): ?Product
+    {
+        return $this->product;
+    }
+
+    public function setProduct(?Product $product): static
+    {
+        $this->product = $product;
+
+        return $this;
+    }
+
+    public function getBatch(): ?Batch
+    {
+        return $this->batch;
+    }
+
+    public function setBatch(?Batch $batch): static
+    {
+        $this->batch = $batch;
+
+        return $this;
+    }
+
+    public function getQuantity(): ?string
+    {
+        return $this->quantity;
+    }
+
+    public function setQuantity(string $quantity): static
+    {
+        $this->quantity = $quantity;
+
+        return $this;
+    }
+
+    public function getDocType(): ?string
+    {
+        return $this->docType;
+    }
+
+    public function setDocType(string $docType): static
+    {
+        $this->docType = $docType;
+
+        return $this;
+    }
+
+    public function getDocId(): ?int
+    {
+        return $this->docId;
+    }
+
+    public function setDocId(int $docId): static
+    {
+        $this->docId = $docId;
+
+        return $this;
+    }
+
+    public function getDocNumber(): ?string
+    {
+        return $this->docNumber;
+    }
+
+    public function setDocNumber(string $docNumber): static
+    {
+        $this->docNumber = $docNumber;
+
+        return $this;
+    }
+
+    public function getReverses(): ?self
+    {
+        return $this->reverses;
+    }
+
+    public function setReverses(?self $reverses): static
+    {
+        $this->reverses = $reverses;
+
+        return $this;
+    }
+
+    public function getCreatedBy(): ?User
+    {
+        return $this->createdBy;
+    }
+
+    public function setCreatedBy(?User $createdBy): static
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    public function getNote(): ?string
+    {
+        return $this->note;
+    }
+
+    public function setNote(?string $note): static
+    {
+        $this->note = $note;
+
+        return $this;
+    }
+}
