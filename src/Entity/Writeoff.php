@@ -3,17 +3,37 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use App\Component\Core\Enums\DocStatus;
+use App\Controller\WriteoffChangeStatusAction;
+use App\Controller\WriteoffCreateAction;
 use App\Repository\WriteoffRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: WriteoffRepository::class)]
 #[ORM\Table(name: 'writeoffs')]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+        new Post(
+            controller: WriteoffCreateAction::class,
+        ),
+        new Post(
+            uriTemplate: '/writeoffs/{id}/change-status',
+            controller: WriteoffChangeStatusAction::class,
+            denormalizationContext: ['groups' => ['writeoffs-status:write']]
+        )
+    ],
+    denormalizationContext: ['groups' => ['writeoffs:write']]
+)]
 class Writeoff
 {
     #[ORM\Id]
@@ -25,9 +45,11 @@ class Writeoff
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['writeoffs:write'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: 'text')]
+    #[Groups(['writeoffs:write'])]
     private ?string $reason = null;
 
     #[ORM\ManyToOne]
@@ -38,6 +60,7 @@ class Writeoff
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
+    #[Groups(['writeoffs-status:write'])]
     private ?DocStatus $status = null;
 
     /**

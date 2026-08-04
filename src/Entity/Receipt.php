@@ -3,17 +3,37 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use App\Component\Core\Enums\DocStatus;
+use App\Controller\ReceiptCreateAction;
+use App\Controller\ReceiptChangeStatusAction;
 use App\Repository\ReceiptRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ReceiptRepository::class)]
 #[ORM\Table(name: 'receipts')]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+        new Post(
+            controller: ReceiptCreateAction::class,
+        ),
+        new Post(
+            uriTemplate: '/receipts/{id}/change-status',
+            controller: ReceiptChangeStatusAction::class,
+            denormalizationContext: ['groups' => ['receipts-status:write']]
+        )
+    ],
+    denormalizationContext: ['groups' => ['receipts:write']]
+)]
 class Receipt
 {
     #[ORM\Id]
@@ -25,6 +45,7 @@ class Receipt
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['receipts:write'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
@@ -32,6 +53,7 @@ class Receipt
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['receipts:write'])]
     private ?Supplier $supplier = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
@@ -48,9 +70,11 @@ class Receipt
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
+    #[Groups(['receipts-status:write'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Groups(['receipts:write'])]
     private ?string $note = null;
 
     /**

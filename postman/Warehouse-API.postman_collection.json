@@ -1,0 +1,2858 @@
+{
+  "info": {
+    "_postman_id": "e5afa606-cbeb-4439-854c-940a03184b8a",
+    "name": "Warehouse API",
+    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8507/api",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "owner@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "SuperSecret123!",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "supplierId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "exchangeRateDate",
+      "value": "2026-08-01",
+      "type": "string"
+    },
+    {
+      "key": "receiptId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "batchId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "receiptItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentAllocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "writeoffId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "writeoffItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockMovementId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth & Users",
+      "item": [
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Creates the account used by every other request in this collection.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('userId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "auth"
+              ]
+            },
+            "description": "Stores accessToken/refreshToken as collection variables. The collection's Bearer auth reads {{accessToken}} automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "pm.test('Received tokens', function () {",
+                  "    pm.expect(json.accessToken).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/refreshToken",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "auth",
+                "refreshToken"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "About me",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/about_me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "about_me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Is email unique",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/is_unique_email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "is_unique_email"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"someone@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List users (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"password\": \"NewSecret456!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            },
+            "description": "GET collection of Categories."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            },
+            "description": "Creates a new Categories record and stores its id in {{categoryId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"slug\": \"margarine\",\n    \"name\": \"Маргарин\",\n    \"sortOrder\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('categoryId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Categories by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{{categoryId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Categories",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Маргарин (обновлено)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Categories",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{{categoryId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Exchange Rates",
+      "item": [
+        {
+          "name": "List Exchange Rates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/exchange-rates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchange-rates"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/exchange-rates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchange-rates"
+              ]
+            },
+            "description": "rate_date is the primary key, so nothing needs to be captured from the response.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rateDate\": \"{{exchangeRateDate}}\",\n    \"rateBuy\": \"12500.0000\",\n    \"rateSell\": \"12700.0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Exchange Rate by date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchange-rates",
+                "{{exchangeRateDate}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Exchange Rate",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchange-rates",
+                "{{exchangeRateDate}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rateSell\": \"12750.0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Exchange Rate",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchange-rates",
+                "{{exchangeRateDate}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "GET collection of Products."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Creates a new Products record and stores its id in {{productId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sku\": \"MARG-001\",\n    \"name\": \"Маргарин 1кг\",\n    \"category\": \"/api/categories/{{categoryId}}\",\n    \"currency\": \"USD\",\n    \"unit\": \"kg\",\n    \"packQty\": \"1.000\",\n    \"packUnit\": \"kg\",\n    \"minStock\": \"50.000\",\n    \"purchasePrice\": \"38.00\",\n    \"salePrice\": \"45.00\",\n    \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('productId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Products by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Products",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"salePrice\": \"47.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Products",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "List Clients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "GET collection of Clients."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Clients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "Creates a new Clients record and stores its id in {{clientId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"ООО Ромашка\",\n    \"contact\": \"Иван Иванов\",\n    \"phone\": \"+998901234567\",\n    \"address\": \"Ташкент, ул. Мирзо-Улугбека 1\",\n    \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('clientId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Clients by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Clients",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"+998901112233\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Clients",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Suppliers",
+      "item": [
+        {
+          "name": "List Suppliers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ]
+            },
+            "description": "GET collection of Suppliers."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Suppliers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ]
+            },
+            "description": "Creates a new Suppliers record and stores its id in {{supplierId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Import Trade LLC\",\n    \"contact\": \"John Smith\",\n    \"phone\": \"+998907654321\",\n    \"address\": \"Ташкент, Юнусабадский р-н\",\n    \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('supplierId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Suppliers by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Suppliers",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"+998907650000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Suppliers",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Receipts",
+      "item": [
+        {
+          "name": "List Receipts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipts"
+              ]
+            },
+            "description": "GET collection of Receipts."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Receipts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipts"
+              ]
+            },
+            "description": "Creates a new Receipts record and stores its id in {{receiptId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"number\": \"ПР-00001\",\n    \"docDate\": \"2026-08-01\",\n    \"supplier\": \"/api/suppliers/{{supplierId}}\",\n    \"totalUsd\": \"3800.00\",\n    \"totalUzs\": \"0.00\",\n    \"receivedBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('receiptId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Receipts by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipts/{{receiptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipts",
+                "{{receiptId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Receipts",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipts/{{receiptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipts",
+                "{{receiptId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Receipts",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipts/{{receiptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipts",
+                "{{receiptId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Batches",
+      "item": [
+        {
+          "name": "List Batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches"
+              ]
+            },
+            "description": "GET collection of Batches."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Batches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches"
+              ]
+            },
+            "description": "Creates a new Batches record and stores its id in {{batchId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"number\": \"B-0001\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"receivedAt\": \"2026-08-01\",\n    \"initialQty\": \"100.000\",\n    \"purchasePrice\": \"38.00\",\n    \"currency\": \"USD\",\n    \"rateSell\": \"12700.0000\",\n    \"supplier\": \"/api/suppliers/{{supplierId}}\",\n    \"receipt\": \"/api/receipts/{{receiptId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('batchId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Batches by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches/{{batchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches",
+                "{{batchId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Batches",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches/{{batchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches",
+                "{{batchId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"initialQty\": \"95.000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Batches",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches/{{batchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches",
+                "{{batchId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Receipt Items",
+      "item": [
+        {
+          "name": "List Receipt Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipt-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipt-items"
+              ]
+            },
+            "description": "GET collection of Receipt Items."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Receipt Items",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipt-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipt-items"
+              ]
+            },
+            "description": "Creates a new Receipt Items record and stores its id in {{receiptItemId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"receipt\": \"/api/receipts/{{receiptId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"100.000\",\n    \"price\": \"38.00\",\n    \"currency\": \"USD\",\n    \"rate\": \"12500.0000\",\n    \"total\": \"3800.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('receiptItemId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Receipt Items by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipt-items",
+                "{{receiptItemId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Receipt Items",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipt-items",
+                "{{receiptItemId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": \"39.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Receipt Items",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "receipt-items",
+                "{{receiptItemId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "List Sales",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "GET collection of Sales."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Sales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Creates a new Sales record and stores its id in {{saleId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"number\": \"РН-00001\",\n    \"docDate\": \"2026-08-02\",\n    \"customer\": \"/api/clients/{{clientId}}\",\n    \"rate\": \"12900.0000\",\n    \"totalUsd\": \"900.00\",\n    \"totalUzs\": \"0.00\",\n    \"soldBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('saleId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Sales by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Sales",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Sales",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sale Items",
+      "item": [
+        {
+          "name": "List Sale Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale-items"
+              ]
+            },
+            "description": "GET collection of Sale Items."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Sale Items",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale-items"
+              ]
+            },
+            "description": "Creates a new Sale Items record and stores its id in {{saleItemId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"20.000\",\n    \"price\": \"45.00\",\n    \"currency\": \"USD\",\n    \"total\": \"900.00\",\n    \"costPrice\": \"38.00\",\n    \"costCurrency\": \"USD\",\n    \"costRate\": \"12500.0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('saleItemId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Sale Items by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale-items",
+                "{{saleItemId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Sale Items",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale-items",
+                "{{saleItemId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": \"44.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Sale Items",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale-items",
+                "{{saleItemId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "GET collection of Payments."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Payments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "Creates a new Payments record and stores its id in {{paymentId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"number\": \"ОП-00001\",\n    \"docDate\": \"2026-08-03\",\n    \"client\": \"/api/clients/{{clientId}}\",\n    \"amount\": \"900.00\",\n    \"currency\": \"USD\",\n    \"method\": \"cash\",\n    \"acceptedBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('paymentId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Payments by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payments",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payments",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment Allocations",
+      "item": [
+        {
+          "name": "List Payment Allocations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment-allocations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-allocations"
+              ]
+            },
+            "description": "GET collection of Payment Allocations."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Payment Allocations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment-allocations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-allocations"
+              ]
+            },
+            "description": "Creates a new Payment Allocations record and stores its id in {{paymentAllocationId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"payment\": \"/api/payments/{{paymentId}}\",\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"currency\": \"USD\",\n    \"amountClosed\": \"900.00\",\n    \"amountSpent\": \"900.00\",\n    \"docRate\": \"12900.0000\",\n    \"payRate\": \"12900.0000\",\n    \"isRounding\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('paymentAllocationId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Payment Allocations by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-allocations",
+                "{{paymentAllocationId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payment Allocations",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-allocations",
+                "{{paymentAllocationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"isRounding\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payment Allocations",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-allocations",
+                "{{paymentAllocationId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Writeoffs",
+      "item": [
+        {
+          "name": "List Writeoffs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoffs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoffs"
+              ]
+            },
+            "description": "GET collection of Writeoffs."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Writeoffs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoffs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoffs"
+              ]
+            },
+            "description": "Creates a new Writeoffs record and stores its id in {{writeoffId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"number\": \"СП-00001\",\n    \"docDate\": \"2026-08-03\",\n    \"reason\": \"Истёк срок годности\",\n    \"createdBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('writeoffId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Writeoffs by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoffs",
+                "{{writeoffId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Writeoffs",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoffs",
+                "{{writeoffId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"posted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Writeoffs",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoffs",
+                "{{writeoffId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Writeoff Items",
+      "item": [
+        {
+          "name": "List Writeoff Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoff-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoff-items"
+              ]
+            },
+            "description": "GET collection of Writeoff Items."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Writeoff Items",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoff-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoff-items"
+              ]
+            },
+            "description": "Creates a new Writeoff Items record and stores its id in {{writeoffItemId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"writeoff\": \"/api/writeoffs/{{writeoffId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"5.000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('writeoffItemId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Writeoff Items by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoff-items",
+                "{{writeoffItemId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Writeoff Items",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoff-items",
+                "{{writeoffItemId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"quantity\": \"4.000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Writeoff Items",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "writeoff-items",
+                "{{writeoffItemId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stock Movements",
+      "item": [
+        {
+          "name": "List Stock Movements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stock-movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stock-movements"
+              ]
+            },
+            "description": "GET collection of Stock Movements."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Stock Movements",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/ld+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stock-movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stock-movements"
+              ]
+            },
+            "description": "Creates a new Stock Movements record and stores its id in {{stockMovementId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"occurredAt\": \"{{$isoTimestamp}}\",\n    \"type\": \"in\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"100.000\",\n    \"docType\": \"receipt\",\n    \"docId\": {{receiptId}},\n    \"docNumber\": \"ПР-00001\",\n    \"createdBy\": \"/api/users/{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.id !== undefined) { pm.collectionVariables.set('stockMovementId', json.id); }",
+                  "}",
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Stock Movements by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stock-movements",
+                "{{stockMovementId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Stock Movements",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stock-movements",
+                "{{stockMovementId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"note\": \"corrected manually\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Stock Movements",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stock-movements",
+                "{{stockMovementId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -18,4 +18,16 @@ class ReceiptRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Receipt::class);
     }
+
+    public function findLastNumber(): ?string
+    {
+        $result = $this->createQueryBuilder('r')
+            ->select('r.number')
+            ->orderBy('r.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result['number'] ?? null;
+    }
 }

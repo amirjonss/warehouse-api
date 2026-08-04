@@ -18,4 +18,16 @@ class WriteoffRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Writeoff::class);
     }
+
+    public function findLastNumber(): ?string
+    {
+        $result = $this->createQueryBuilder('w')
+            ->select('w.number')
+            ->orderBy('w.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result['number'] ?? null;
+    }
 }

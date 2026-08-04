@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Controller;
+
+use ApiPlatform\Validator\ValidatorInterface;
+use App\Component\User\CurrentUser;
+use App\Controller\Base\AbstractController;
+use App\Entity\WriteoffItem;
+use App\Service\WriteoffItemUpdateService;
+use Symfony\Component\Serializer\SerializerInterface;
+
+class WriteoffItemUpdateAction extends AbstractController
+{
+    public function __construct(
+        SerializerInterface $serializer,
+        ValidatorInterface $validator,
+        CurrentUser $currentUser,
+        private WriteoffItemUpdateService $writeoffItemUpdateService,
+    ) {
+        parent::__construct($serializer, $validator, $currentUser);
+    }
+
+    public function __invoke(WriteoffItem $data): WriteoffItem
+    {
+        return $this->writeoffItemUpdateService->update($data);
+    }
+}

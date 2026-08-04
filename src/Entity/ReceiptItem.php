@@ -3,15 +3,41 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Component\Product\Enums\Currency;
+use App\Controller\ReceiptItemCreateAction;
+use App\Controller\ReceiptItemDeleteAction;
+use App\Controller\ReceiptItemUpdateAction;
 use App\Repository\ReceiptItemRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReceiptItemRepository::class)]
 #[ORM\Table(name: 'receipt_items')]
-#[ApiResource]
+#[ORM\UniqueConstraint(name: 'uniq_receipt_items_receipt_product', columns: ['receipt_id', 'product_id'])]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+        new Post(
+            controller: ReceiptItemCreateAction::class,
+        ),
+        new Patch(
+            controller: ReceiptItemUpdateAction::class,
+            denormalizationContext: ['groups' => ['receipt-item-update:write']],
+        ),
+        new Delete(
+            controller: ReceiptItemDeleteAction::class,
+        ),
+    ],
+    denormalizationContext: ['groups' => ['receipt:write']],
+)]
 #[Assert\Expression(
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRate() === "1"',
     message: 'rate must be 1 for a UZS receipt item',
@@ -25,26 +51,35 @@ class ReceiptItem
 
     #[ORM\ManyToOne(inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[Groups(['receipt:write'])]
     private ?Receipt $receipt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['receipt:write'])]
     private ?Product $product = null;
 
     #[ORM\OneToOne]
-    #[ORM\JoinColumn(unique: true, nullable: false)]
+    #[ORM\JoinColumn(unique: true, nullable: true)]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Assert\Positive]
     private ?string $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Assert\Positive]
     private ?string $price = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[Groups(['receipt:write', 'receipt-item-update:write'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Assert\Positive]
     private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
