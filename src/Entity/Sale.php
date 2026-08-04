@@ -3,17 +3,37 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use App\Component\Core\Enums\DocStatus;
+use App\Controller\SaleChangeStatusAction;
+use App\Controller\SaleCreateAction;
 use App\Repository\SaleRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: SaleRepository::class)]
 #[ORM\Table(name: 'sales')]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+        new Post(
+            controller: SaleCreateAction::class,
+        ),
+        new Post(
+            uriTemplate: '/sales/{id}/change-status',
+            controller: SaleChangeStatusAction::class,
+            denormalizationContext: ['groups' => ['sales-status:write']]
+        )
+    ],
+    denormalizationContext: ['groups' => ['sales:write']]
+)]
 class Sale
 {
     #[ORM\Id]
@@ -25,6 +45,7 @@ class Sale
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['sales:write'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
@@ -32,9 +53,11 @@ class Sale
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['sales:write'])]
     private ?Client $customer = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[Groups(['sales:write'])]
     private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
@@ -51,9 +74,11 @@ class Sale
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
+    #[Groups(['sales-status:write'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Groups(['sales:write'])]
     private ?string $note = null;
 
     /**

@@ -18,4 +18,16 @@ class SaleRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Sale::class);
     }
+
+    public function findLastNumber(): ?string
+    {
+        $result = $this->createQueryBuilder('s')
+            ->select('s.number')
+            ->orderBy('s.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result['number'] ?? null;
+    }
 }
