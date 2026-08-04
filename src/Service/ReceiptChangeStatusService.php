@@ -4,7 +4,11 @@ namespace App\Service;
 
 use App\Component\Batch\BatchFactory;
 use App\Component\Core\Enums\DocStatus;
+use App\Component\Core\Enums\DocumentType;
+use App\Component\Core\Enums\MovementType;
 use App\Component\Receipt\Exceptions\ReceiptStatusTransitionException;
+use App\Component\StockMovement\StockMovementFactory;
+use App\Component\User\CurrentUser;
 use App\Entity\Receipt;
 use App\Repository\BatchRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -14,6 +18,8 @@ class ReceiptChangeStatusService
     public function __construct(
         private BatchFactory $batchFactory,
         private BatchRepository $batchRepository,
+        private StockMovementFactory $stockMovementFactory,
+        private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -59,6 +65,18 @@ class ReceiptChangeStatusService
                 $batch = $this->batchFactory->create($receiptItem);
                 $this->entityManager->persist($batch);
                 $receiptItem->setBatch($batch);
+
+                $stockMovement = $this->stockMovementFactory->create(
+                    MovementType::IN,
+                    $receiptItem->getProduct(),
+                    $batch,
+                    $receiptItem->getQuantity(),
+                    DocumentType::RECEIPT,
+                    $receipt->getId(),
+                    $receipt->getNumber(),
+                    $this->currentUser->getUser()
+                );
+                $this->entityManager->persist($stockMovement);
             }
 
             return $receipt;

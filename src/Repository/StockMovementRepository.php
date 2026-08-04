@@ -18,4 +18,23 @@ class StockMovementRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, StockMovement::class);
     }
+
+    /**
+     * @return array<int, string> остаток, индексированный по product id
+     */
+    public function getRemainingQtyByProduct(): array
+    {
+        $rows = $this->createQueryBuilder('sm')
+            ->select('IDENTITY(sm.product) AS productId, SUM(sm.quantity) AS remainingQty')
+            ->groupBy('sm.product')
+            ->getQuery()
+            ->getResult();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[(int) $row['productId']] = (string) $row['remainingQty'];
+        }
+
+        return $result;
+    }
 }

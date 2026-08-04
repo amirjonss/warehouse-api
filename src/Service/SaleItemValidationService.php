@@ -22,13 +22,13 @@ class SaleItemValidationService
 
         $existingItem = $this->saleItemRepository->findOneBy([
             'sale' => $data->getSale(),
-            'batch' => $data->getBatch(),
+            'product' => $data->getProduct(),
         ]);
 
         if ($existingItem !== null) {
             throw new DuplicateSaleItemException(sprintf(
-                'Batch "%s" is already added to this sale.',
-                $data->getBatch()->getNumber()
+                'Product "%s" is already added to this sale.',
+                $data->getProduct()->getName()
             ));
         }
     }

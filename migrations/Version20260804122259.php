@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20260803102039 extends AbstractMigration
+final class Version20260804122259 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -75,7 +75,7 @@ final class Version20260803102039 extends AbstractMigration
             CREATE INDEX IDX_D34A04AD12469DE2 ON product (category_id)
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE receipt_items (id SERIAL NOT NULL, receipt_id INT NOT NULL, product_id INT NOT NULL, batch_id INT NOT NULL, quantity NUMERIC(14, 3) NOT NULL, price NUMERIC(14, 2) NOT NULL, currency VARCHAR(255) NOT NULL, rate NUMERIC(12, 4) NOT NULL, total NUMERIC(18, 2) NOT NULL, PRIMARY KEY(id))
+            CREATE TABLE receipt_items (id SERIAL NOT NULL, receipt_id INT NOT NULL, product_id INT NOT NULL, batch_id INT DEFAULT NULL, quantity NUMERIC(14, 3) NOT NULL, price NUMERIC(14, 2) NOT NULL, currency VARCHAR(255) NOT NULL, rate NUMERIC(12, 4) NOT NULL, total NUMERIC(18, 2) NOT NULL, PRIMARY KEY(id))
         SQL);
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_5865D7D2B5CA896 ON receipt_items (receipt_id)
@@ -85,6 +85,9 @@ final class Version20260803102039 extends AbstractMigration
         SQL);
         $this->addSql(<<<'SQL'
             CREATE UNIQUE INDEX UNIQ_5865D7DF39EBE7A ON receipt_items (batch_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE UNIQUE INDEX uniq_receipt_items_receipt_product ON receipt_items (receipt_id, product_id)
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE receipts (id SERIAL NOT NULL, supplier_id INT NOT NULL, received_by_id INT NOT NULL, number VARCHAR(255) NOT NULL, doc_date DATE NOT NULL, posted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, total_usd NUMERIC(14, 2) NOT NULL, total_uzs NUMERIC(18, 2) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, status VARCHAR(255) NOT NULL, note TEXT DEFAULT NULL, PRIMARY KEY(id))
@@ -99,16 +102,25 @@ final class Version20260803102039 extends AbstractMigration
             CREATE INDEX IDX_1DEBE3A26F8DDD17 ON receipts (received_by_id)
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE sale_items (id SERIAL NOT NULL, sale_id INT NOT NULL, product_id INT NOT NULL, batch_id INT NOT NULL, quantity NUMERIC(14, 3) NOT NULL, price NUMERIC(14, 2) NOT NULL, currency VARCHAR(255) NOT NULL, total NUMERIC(18, 2) NOT NULL, cost_price NUMERIC(14, 2) NOT NULL, cost_currency VARCHAR(255) NOT NULL, cost_rate NUMERIC(12, 4) NOT NULL, PRIMARY KEY(id))
+            CREATE TABLE sale_item_allocations (id SERIAL NOT NULL, sale_item_id INT NOT NULL, batch_id INT NOT NULL, quantity NUMERIC(14, 3) NOT NULL, cost_price NUMERIC(14, 2) NOT NULL, cost_currency VARCHAR(255) NOT NULL, cost_rate NUMERIC(12, 4) NOT NULL, PRIMARY KEY(id))
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX IDX_906F4BDB677190CC ON sale_item_allocations (sale_item_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX IDX_906F4BDBF39EBE7A ON sale_item_allocations (batch_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE UNIQUE INDEX uniq_sale_item_allocations_sale_item_batch ON sale_item_allocations (sale_item_id, batch_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE TABLE sale_items (id SERIAL NOT NULL, sale_id INT NOT NULL, product_id INT NOT NULL, quantity NUMERIC(14, 3) NOT NULL, price NUMERIC(14, 2) NOT NULL, currency VARCHAR(255) NOT NULL, total NUMERIC(18, 2) NOT NULL, PRIMARY KEY(id))
         SQL);
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_31C2B1CE4A7E4868 ON sale_items (sale_id)
         SQL);
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_31C2B1CE4584665A ON sale_items (product_id)
-        SQL);
-        $this->addSql(<<<'SQL'
-            CREATE INDEX IDX_31C2B1CEF39EBE7A ON sale_items (batch_id)
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE sales (id SERIAL NOT NULL, customer_id INT NOT NULL, sold_by_id INT NOT NULL, number VARCHAR(255) NOT NULL, doc_date DATE NOT NULL, posted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, rate NUMERIC(12, 4) NOT NULL, total_usd NUMERIC(14, 2) NOT NULL, total_uzs NUMERIC(18, 2) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, status VARCHAR(255) NOT NULL, note TEXT DEFAULT NULL, PRIMARY KEY(id))
@@ -154,6 +166,9 @@ final class Version20260803102039 extends AbstractMigration
         SQL);
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_EFA32BB5F39EBE7A ON writeoff_items (batch_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE UNIQUE INDEX uniq_writeoff_items_writeoff_batch ON writeoff_items (writeoff_id, batch_id)
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE writeoffs (id SERIAL NOT NULL, created_by_id INT NOT NULL, number VARCHAR(255) NOT NULL, doc_date DATE NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, status VARCHAR(255) NOT NULL, PRIMARY KEY(id))
@@ -204,13 +219,16 @@ final class Version20260803102039 extends AbstractMigration
             ALTER TABLE receipts ADD CONSTRAINT FK_1DEBE3A26F8DDD17 FOREIGN KEY (received_by_id) REFERENCES users (id) NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
+            ALTER TABLE sale_item_allocations ADD CONSTRAINT FK_906F4BDB677190CC FOREIGN KEY (sale_item_id) REFERENCES sale_items (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE sale_item_allocations ADD CONSTRAINT FK_906F4BDBF39EBE7A FOREIGN KEY (batch_id) REFERENCES batches (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
             ALTER TABLE sale_items ADD CONSTRAINT FK_31C2B1CE4A7E4868 FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE sale_items ADD CONSTRAINT FK_31C2B1CE4584665A FOREIGN KEY (product_id) REFERENCES product (id) NOT DEFERRABLE INITIALLY IMMEDIATE
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE sale_items ADD CONSTRAINT FK_31C2B1CEF39EBE7A FOREIGN KEY (batch_id) REFERENCES batches (id) NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE sales ADD CONSTRAINT FK_6B8170449395C3F3 FOREIGN KEY (customer_id) REFERENCES clients (id) NOT DEFERRABLE INITIALLY IMMEDIATE
@@ -222,7 +240,7 @@ final class Version20260803102039 extends AbstractMigration
             ALTER TABLE stock_movements ADD CONSTRAINT FK_A0BE93C94584665A FOREIGN KEY (product_id) REFERENCES product (id) NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
-            ALTER TABLE stock_movements ADD CONSTRAINT FK_A0BE93C9F39EBE7A FOREIGN KEY (batch_id) REFERENCES batches (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+            ALTER TABLE stock_movements ADD CONSTRAINT FK_A0BE93C9F39EBE7A FOREIGN KEY (batch_id) REFERENCES batches (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE stock_movements ADD CONSTRAINT FK_A0BE93C9B03A8386 FOREIGN KEY (created_by_id) REFERENCES users (id) NOT DEFERRABLE INITIALLY IMMEDIATE
@@ -287,13 +305,16 @@ final class Version20260803102039 extends AbstractMigration
             ALTER TABLE receipts DROP CONSTRAINT FK_1DEBE3A26F8DDD17
         SQL);
         $this->addSql(<<<'SQL'
+            ALTER TABLE sale_item_allocations DROP CONSTRAINT FK_906F4BDB677190CC
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE sale_item_allocations DROP CONSTRAINT FK_906F4BDBF39EBE7A
+        SQL);
+        $this->addSql(<<<'SQL'
             ALTER TABLE sale_items DROP CONSTRAINT FK_31C2B1CE4A7E4868
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE sale_items DROP CONSTRAINT FK_31C2B1CE4584665A
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE sale_items DROP CONSTRAINT FK_31C2B1CEF39EBE7A
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE sales DROP CONSTRAINT FK_6B8170449395C3F3
@@ -348,6 +369,9 @@ final class Version20260803102039 extends AbstractMigration
         SQL);
         $this->addSql(<<<'SQL'
             DROP TABLE receipts
+        SQL);
+        $this->addSql(<<<'SQL'
+            DROP TABLE sale_item_allocations
         SQL);
         $this->addSql(<<<'SQL'
             DROP TABLE sale_items

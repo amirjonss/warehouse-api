@@ -3,14 +3,36 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Component\Product\Dtos\ProductStockDto;
 use App\Component\Product\Enums\Currency;
 use App\Component\Product\Enums\UnitCode;
+use App\Controller\ProductStockAction;
 use App\Repository\ProductRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new GetCollection(
+            uriTemplate: '/products/stock',
+            controller: ProductStockAction::class,
+            output: ProductStockDto::class,
+            read: false
+        ),
+        new Get(),
+
+        new Post(),
+
+        new Patch(),
+
+    ]
+)]
 class Product
 {
     #[ORM\Id]

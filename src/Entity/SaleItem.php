@@ -13,6 +13,8 @@ use App\Controller\SaleItemCreateAction;
 use App\Controller\SaleItemDeleteAction;
 use App\Controller\SaleItemUpdateAction;
 use App\Repository\SaleItemRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -20,7 +22,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SaleItemRepository::class)]
 #[ORM\Table(name: 'sale_items')]
-#[ORM\UniqueConstraint(name: 'uniq_sale_items_sale_batch', columns: ['sale_id', 'batch_id'])]
 #[ApiResource(
     operations: [
         new GetCollection(),
@@ -37,10 +38,6 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
     ],
     denormalizationContext: ['groups' => ['sale:write']],
-)]
-#[Assert\Expression(
-    'this.getCostCurrency() === null || this.getCostCurrency().value !== "UZS" || this.getCostRate() === "1"',
-    message: 'costRate must be 1 for a UZS batch',
 )]
 class SaleItem
 {
@@ -59,11 +56,6 @@ class SaleItem
     #[Groups(['sale:write'])]
     private ?Product $product = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['sale:write'])]
-    private ?Batch $batch = null;
-
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
     #[Groups(['sale:write', 'sale-item-update:write'])]
     #[Assert\Positive]
@@ -81,14 +73,16 @@ class SaleItem
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
     private ?string $total = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    private ?string $costPrice = null;
+    /**
+     * @var Collection<int, SaleItemAllocation>
+     */
+    #[ORM\OneToMany(targetEntity: SaleItemAllocation::class, mappedBy: 'saleItem', orphanRemoval: true)]
+    private Collection $allocations;
 
-    #[ORM\Column(enumType: Currency::class)]
-    private ?Currency $costCurrency = null;
-
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
-    private ?string $costRate = null;
+    public function __construct()
+    {
+        $this->allocations = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -115,18 +109,6 @@ class SaleItem
     public function setProduct(?Product $product): static
     {
         $this->product = $product;
-
-        return $this;
-    }
-
-    public function getBatch(): ?Batch
-    {
-        return $this->batch;
-    }
-
-    public function setBatch(?Batch $batch): static
-    {
-        $this->batch = $batch;
 
         return $this;
     }
@@ -179,38 +161,31 @@ class SaleItem
         return $this;
     }
 
-    public function getCostPrice(): ?string
+    /**
+     * @return Collection<int, SaleItemAllocation>
+     */
+    public function getAllocations(): Collection
     {
-        return $this->costPrice;
+        return $this->allocations;
     }
 
-    public function setCostPrice(string $costPrice): static
+    public function addAllocation(SaleItemAllocation $allocation): static
     {
-        $this->costPrice = $costPrice;
+        if (!$this->allocations->contains($allocation)) {
+            $this->allocations->add($allocation);
+            $allocation->setSaleItem($this);
+        }
 
         return $this;
     }
 
-    public function getCostCurrency(): ?Currency
+    public function removeAllocation(SaleItemAllocation $allocation): static
     {
-        return $this->costCurrency;
-    }
-
-    public function setCostCurrency(Currency $costCurrency): static
-    {
-        $this->costCurrency = $costCurrency;
-
-        return $this;
-    }
-
-    public function getCostRate(): ?string
-    {
-        return $this->costRate;
-    }
-
-    public function setCostRate(string $costRate): static
-    {
-        $this->costRate = $costRate;
+        if ($this->allocations->removeElement($allocation)) {
+            if ($allocation->getSaleItem() === $this) {
+                $allocation->setSaleItem(null);
+            }
+        }
 
         return $this;
     }

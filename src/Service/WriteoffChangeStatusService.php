@@ -3,6 +3,10 @@
 namespace App\Service;
 
 use App\Component\Core\Enums\DocStatus;
+use App\Component\Core\Enums\DocumentType;
+use App\Component\Core\Enums\MovementType;
+use App\Component\StockMovement\StockMovementFactory;
+use App\Component\User\CurrentUser;
 use App\Component\Writeoff\Exceptions\InsufficientBatchQuantityException;
 use App\Component\Writeoff\Exceptions\WriteoffStatusTransitionException;
 use App\Entity\Writeoff;
@@ -13,6 +17,8 @@ class WriteoffChangeStatusService
 {
     public function __construct(
         private BatchRepository $batchRepository,
+        private StockMovementFactory $stockMovementFactory,
+        private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -36,6 +42,11 @@ class WriteoffChangeStatusService
             }
 
             $this->assertHasEnoughQuantity($writeoff);
+            $this->recordWriteoffMovements($writeoff);
+        }
+
+        if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
+            $this->reverseMovements($writeoff);
         }
 
         $this->entityManager->flush();
@@ -70,6 +81,40 @@ class WriteoffChangeStatusService
                     $remainingQty
                 ));
             }
+        }
+    }
+
+    private function recordWriteoffMovements(Writeoff $writeoff): void
+    {
+        foreach ($writeoff->getItems() as $writeoffItem) {
+            $stockMovement = $this->stockMovementFactory->create(
+                MovementType::WRITEOFF,
+                $writeoffItem->getProduct(),
+                $writeoffItem->getBatch(),
+                bcmul($writeoffItem->getQuantity(), '-1', 3),
+                DocumentType::WRITEOFF,
+                $writeoff->getId(),
+                $writeoff->getNumber(),
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($stockMovement);
+        }
+    }
+
+    private function reverseMovements(Writeoff $writeoff): void
+    {
+        foreach ($writeoff->getItems() as $writeoffItem) {
+            $stockMovement = $this->stockMovementFactory->create(
+                MovementType::ADJUST,
+                $writeoffItem->getProduct(),
+                $writeoffItem->getBatch(),
+                $writeoffItem->getQuantity(),
+                DocumentType::WRITEOFF,
+                $writeoff->getId(),
+                $writeoff->getNumber(),
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($stockMovement);
         }
     }
 

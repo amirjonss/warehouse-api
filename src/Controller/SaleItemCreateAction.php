@@ -3,10 +3,10 @@
 namespace App\Controller;
 
 use ApiPlatform\Validator\ValidatorInterface;
-use App\Component\SaleItem\SaleItemFactory;
 use App\Component\User\CurrentUser;
 use App\Controller\Base\AbstractController;
 use App\Entity\SaleItem;
+use App\Service\SaleItemAllocationService;
 use App\Service\SaleItemValidationService;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -17,7 +17,7 @@ class SaleItemCreateAction extends AbstractController
         ValidatorInterface $validator,
         CurrentUser $currentUser,
         private SaleItemValidationService $saleItemValidationService,
-        private SaleItemFactory $saleItemFactory,
+        private SaleItemAllocationService $saleItemAllocationService,
     ) {
         parent::__construct($serializer, $validator, $currentUser);
     }
@@ -26,6 +26,6 @@ class SaleItemCreateAction extends AbstractController
     {
         $this->saleItemValidationService->validate($data);
 
-        return $this->saleItemFactory->create($data);
+        return $this->saleItemAllocationService->createWithAllocation($data);
     }
 }

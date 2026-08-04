@@ -3,6 +3,9 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use App\Component\Core\Enums\DocumentType;
 use App\Component\Core\Enums\MovementType;
 use App\Repository\StockMovementRepository;
 use DateTimeInterface;
@@ -15,7 +18,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_stock_movements_batch', columns: ['batch_id'])]
 #[ORM\Index(name: 'idx_stock_movements_product_occurred', columns: ['product_id', 'occurred_at'])]
 #[ORM\Index(name: 'idx_stock_movements_doc', columns: ['doc_type', 'doc_id'])]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+    ],
+)]
 #[Assert\Expression(
     'this.getType() === null || this.getQuantity() === null || '
     . '(this.getType().value === "in" && this.getQuantity() > 0) || '
@@ -42,14 +50,14 @@ class StockMovement
     private ?Product $product = null;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
     private ?string $quantity = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $docType = null;
+    #[ORM\Column(enumType: DocumentType::class)]
+    private ?DocumentType $docType = null;
 
     #[ORM\Column]
     private ?int $docId = null;
@@ -129,12 +137,12 @@ class StockMovement
         return $this;
     }
 
-    public function getDocType(): ?string
+    public function getDocType(): ?DocumentType
     {
         return $this->docType;
     }
 
-    public function setDocType(string $docType): static
+    public function setDocType(DocumentType $docType): static
     {
         $this->docType = $docType;
 

@@ -13,6 +13,7 @@ class SaleItemUpdateService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private SaleTotalsCalculator $saleTotalsCalculator,
+        private SaleItemAllocationService $saleItemAllocationService,
     ) {
     }
 
@@ -24,10 +25,11 @@ class SaleItemUpdateService
 
         $saleItem->setTotal(bcmul($saleItem->getPrice(), $saleItem->getQuantity(), 2));
 
-        $this->saleTotalsCalculator->recalculate($saleItem->getSale());
+        return $this->entityManager->wrapInTransaction(function () use ($saleItem) {
+            $this->saleItemAllocationService->allocate($saleItem);
+            $this->saleTotalsCalculator->recalculate($saleItem->getSale());
 
-        $this->entityManager->flush();
-
-        return $saleItem;
+            return $saleItem;
+        });
     }
 }
