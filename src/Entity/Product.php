@@ -68,8 +68,11 @@ class Product
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
     private ?string $purchasePrice = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    private ?string $salePrice = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2, nullable: true)]
+    private ?string $priceUsd = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2, nullable: true)]
+    private ?string $priceUzs = null;
 
     #[ORM\Column]
     private ?bool $isActive = null;
@@ -187,14 +190,26 @@ class Product
         return $this;
     }
 
-    public function getSalePrice(): ?string
+    public function getPriceUsd(): ?string
     {
-        return $this->salePrice;
+        return $this->priceUsd;
     }
 
-    public function setSalePrice(string $salePrice): static
+    public function setPriceUsd(?string $priceUsd): static
     {
-        $this->salePrice = $salePrice;
+        $this->priceUsd = $priceUsd;
+
+        return $this;
+    }
+
+    public function getPriceUzs(): ?string
+    {
+        return $this->priceUzs;
+    }
+
+    public function setPriceUzs(?string $priceUzs): static
+    {
+        $this->priceUzs = $priceUzs;
 
         return $this;
     }

@@ -27,7 +27,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
             controller: SaleCreateAction::class,
         ),
         new Post(
-            uriTemplate: '/sales/{id}/change-status',
+            uriTemplate: '/sales/{id}/change_status',
             controller: SaleChangeStatusAction::class,
             denormalizationContext: ['groups' => ['sales-status:write']]
         )
@@ -55,10 +55,6 @@ class Sale
     #[ORM\JoinColumn(nullable: false)]
     #[Groups(['sales:write'])]
     private ?Client $customer = null;
-
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
-    #[Groups(['sales:write'])]
-    private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
     private ?string $totalUsd = null;
@@ -141,18 +137,6 @@ class Sale
     public function setCustomer(?Client $customer): static
     {
         $this->customer = $customer;
-
-        return $this;
-    }
-
-    public function getRate(): ?string
-    {
-        return $this->rate;
-    }
-
-    public function setRate(string $rate): static
-    {
-        $this->rate = $rate;
 
         return $this;
     }

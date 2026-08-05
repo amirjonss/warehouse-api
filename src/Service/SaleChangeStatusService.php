@@ -5,8 +5,11 @@ namespace App\Service;
 use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\DocumentType;
 use App\Component\Core\Enums\MovementType;
+use App\Component\Core\Enums\ProfitEntryType;
+use App\Component\Profit\ProfitFactory;
 use App\Component\Sale\Exceptions\InsufficientBatchQuantityException;
 use App\Component\Sale\Exceptions\SaleStatusTransitionException;
+use App\Component\SaleItem\SaleItemProfitCalculator;
 use App\Component\StockMovement\StockMovementFactory;
 use App\Component\User\CurrentUser;
 use App\Entity\Sale;
@@ -18,6 +21,8 @@ class SaleChangeStatusService
     public function __construct(
         private BatchRepository $batchRepository,
         private StockMovementFactory $stockMovementFactory,
+        private SaleItemProfitCalculator $saleItemProfitCalculator,
+        private ProfitFactory $profitFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
@@ -43,10 +48,12 @@ class SaleChangeStatusService
 
             $this->assertHasEnoughQuantity($sale);
             $this->recordOutMovements($sale);
+            $this->recordProfitEntries($sale);
         }
 
         if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
             $this->reverseMovements($sale);
+            $this->reverseProfitEntries($sale);
         }
 
         $this->entityManager->flush();
@@ -120,6 +127,44 @@ class SaleChangeStatusService
                     $this->currentUser->getUser()
                 );
                 $this->entityManager->persist($stockMovement);
+            }
+        }
+    }
+
+    private function recordProfitEntries(Sale $sale): void
+    {
+        foreach ($sale->getItems() as $saleItem) {
+            foreach ($saleItem->getAllocations() as $allocation) {
+                $profit = $this->saleItemProfitCalculator->calculate($allocation);
+
+                $profitEntry = $this->profitFactory->create(
+                    ProfitEntryType::REALIZED,
+                    $sale,
+                    $saleItem,
+                    $allocation,
+                    $profit,
+                    $this->currentUser->getUser()
+                );
+                $this->entityManager->persist($profitEntry);
+            }
+        }
+    }
+
+    private function reverseProfitEntries(Sale $sale): void
+    {
+        foreach ($sale->getItems() as $saleItem) {
+            foreach ($saleItem->getAllocations() as $allocation) {
+                $profit = $this->saleItemProfitCalculator->calculate($allocation);
+
+                $profitEntry = $this->profitFactory->create(
+                    ProfitEntryType::REVERSED,
+                    $sale,
+                    $saleItem,
+                    $allocation,
+                    bcmul($profit, '-1', 2),
+                    $this->currentUser->getUser()
+                );
+                $this->entityManager->persist($profitEntry);
             }
         }
     }

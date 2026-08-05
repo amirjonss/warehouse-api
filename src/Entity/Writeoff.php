@@ -27,7 +27,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
             controller: WriteoffCreateAction::class,
         ),
         new Post(
-            uriTemplate: '/writeoffs/{id}/change-status',
+            uriTemplate: '/writeoffs/{id}/change_status',
             controller: WriteoffChangeStatusAction::class,
             denormalizationContext: ['groups' => ['writeoffs-status:write']]
         )

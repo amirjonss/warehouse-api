@@ -27,7 +27,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
             controller: ReceiptCreateAction::class,
         ),
         new Post(
-            uriTemplate: '/receipts/{id}/change-status',
+            uriTemplate: '/receipts/{id}/change_status',
             controller: ReceiptChangeStatusAction::class,
             denormalizationContext: ['groups' => ['receipts-status:write']]
         )

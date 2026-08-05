@@ -25,7 +25,6 @@ class SaleCreateAction extends AbstractController
         return $this->saleFactory->create(
             $this->getUser(),
             $data->getCustomer(),
-            $data->getRate(),
             $data->getNote() ?? '',
             $data->getDocDate()
         );

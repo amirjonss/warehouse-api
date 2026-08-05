@@ -18,14 +18,13 @@ class SaleFactory
     {
     }
 
-    public function create(User $soldBy, Client $customer, string $rate, string $note = '', DateTime $docDate = null): Sale
+    public function create(User $soldBy, Client $customer, string $note = '', DateTime $docDate = null): Sale
     {
         $sale = new Sale();
         $sale
             ->setNumber($this->generateNumber())
             ->setDocDate($docDate ?? new DateTime())
             ->setCustomer($customer)
-            ->setRate($rate)
             ->setNote($note)
             ->setSoldBy($soldBy)
             ->setCreatedAt(new DateTime())

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e5afa606-cbeb-4439-854c-940a03184b8a",
     "name": "Warehouse API",
-    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...).",
+    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...). Receipt/Sale/Writeoff no longer accept number/status/createdBy/receivedBy/totalUsd/totalUzs on create — the server generates the number and always starts in draft. Status only changes via the dedicated POST .../change_status endpoint (not PATCH). SaleItem no longer accepts batch/total/costPrice/costCurrency/costRate — the server picks batches via FIFO automatically and computes cost/total; price is optional and defaults to Product.priceUsd/priceUzs if omitted. StockMovement, SaleItemAllocation and Profit are read-only ledgers written only by the server when a document is posted/cancelled.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -93,6 +93,16 @@
     },
     {
       "key": "saleItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleItemAllocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "profitId",
       "value": "",
       "type": "string"
     },
@@ -604,12 +614,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/exchange-rates",
+              "raw": "{{baseUrl}}/exchange_rates",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "exchange-rates"
+                "exchange_rates"
               ]
             }
           },
@@ -630,12 +640,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/exchange-rates",
+              "raw": "{{baseUrl}}/exchange_rates",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "exchange-rates"
+                "exchange_rates"
               ]
             },
             "description": "rate_date is the primary key, so nothing needs to be captured from the response.",
@@ -662,12 +672,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "raw": "{{baseUrl}}/exchange_rates/{{exchangeRateDate}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "exchange-rates",
+                "exchange_rates",
                 "{{exchangeRateDate}}"
               ]
             }
@@ -689,12 +699,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "raw": "{{baseUrl}}/exchange_rates/{{exchangeRateDate}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "exchange-rates",
+                "exchange_rates",
                 "{{exchangeRateDate}}"
               ]
             },
@@ -721,12 +731,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/exchange-rates/{{exchangeRateDate}}",
+              "raw": "{{baseUrl}}/exchange_rates/{{exchangeRateDate}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "exchange-rates",
+                "exchange_rates",
                 "{{exchangeRateDate}}"
               ]
             }
@@ -762,6 +772,30 @@
           "response": []
         },
         {
+          "name": "List Product Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "stock"
+              ]
+            },
+            "description": "Read-only report: every product with its current remaining quantity, aggregated from the stock_movements ledger (id, sku, name, unit, remainingQty)."
+          },
+          "response": []
+        },
+        {
           "name": "Create Products",
           "request": {
             "method": "POST",
@@ -784,10 +818,10 @@
                 "products"
               ]
             },
-            "description": "Creates a new Products record and stores its id in {{productId}}.",
+            "description": "Creates a new Products record and stores its id in {{productId}}. priceUsd/priceUzs are optional default sale prices (independently set, not derived from an exchange rate) — SaleItem.price falls back to these when omitted.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"sku\": \"MARG-001\",\n    \"name\": \"Маргарин 1кг\",\n    \"category\": \"/api/categories/{{categoryId}}\",\n    \"currency\": \"USD\",\n    \"unit\": \"kg\",\n    \"packQty\": \"1.000\",\n    \"packUnit\": \"kg\",\n    \"minStock\": \"50.000\",\n    \"purchasePrice\": \"38.00\",\n    \"salePrice\": \"45.00\",\n    \"isActive\": true\n}",
+              "raw": "{\n    \"sku\": \"MARG-001\",\n    \"name\": \"Маргарин 1кг\",\n    \"category\": \"/api/categories/{{categoryId}}\",\n    \"currency\": \"USD\",\n    \"unit\": \"kg\",\n    \"packQty\": \"1.000\",\n    \"packUnit\": \"kg\",\n    \"minStock\": \"50.000\",\n    \"purchasePrice\": \"38.00\",\n    \"priceUsd\": \"45.00\",\n    \"priceUzs\": \"580000.00\",\n    \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -863,7 +897,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"salePrice\": \"47.00\"\n}",
+              "raw": "{\n    \"priceUsd\": \"47.00\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1273,10 +1307,10 @@
                 "receipts"
               ]
             },
-            "description": "Creates a new Receipts record and stores its id in {{receiptId}}.",
+            "description": "Creates a new Receipts record and stores its id in {{receiptId}}. number/status/receivedBy/totalUsd/totalUzs/createdAt are set by the server (auto number like ПР-00001, status always starts as draft, receivedBy = current user).",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"number\": \"ПР-00001\",\n    \"docDate\": \"2026-08-01\",\n    \"supplier\": \"/api/suppliers/{{supplierId}}\",\n    \"totalUsd\": \"3800.00\",\n    \"totalUzs\": \"0.00\",\n    \"receivedBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "raw": "{\n    \"docDate\": \"2026-08-01\",\n    \"supplier\": \"/api/suppliers/{{supplierId}}\",\n    \"note\": \"\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1327,13 +1361,13 @@
           "response": []
         },
         {
-          "name": "Update Receipts",
+          "name": "Change status Receipts",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/merge-patch+json"
+                "value": "application/ld+json"
               },
               {
                 "key": "Accept",
@@ -1341,18 +1375,20 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipts/{{receiptId}}",
+              "raw": "{{baseUrl}}/receipts/{{receiptId}}/change_status",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "receipts",
-                "{{receiptId}}"
+                "{{receiptId}}",
+                "change_status"
               ]
             },
+            "description": "Only way to change status now (no generic PATCH on Receipt). draft->posted creates a Batch per item and writes an IN stock movement for each. posted->cancelled only works if none of the batches were used yet (deletes them and their movements). posted->draft is rejected.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "raw": "{\n    \"status\": \"posted\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1360,30 +1396,20 @@
               }
             }
           },
-          "response": []
-        },
-        {
-          "name": "Delete Receipts",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/receipts/{{receiptId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "receipts",
-                "{{receiptId}}"
-              ]
             }
-          },
-          "response": []
+          ]
         }
       ]
     },
@@ -1409,62 +1435,9 @@
                 "batches"
               ]
             },
-            "description": "GET collection of Batches."
+            "description": "GET collection of Batches. Batches are created by the server when a Receipt is posted — there is no client-facing create."
           },
           "response": []
-        },
-        {
-          "name": "Create Batches",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/ld+json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/batches",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "batches"
-              ]
-            },
-            "description": "Creates a new Batches record and stores its id in {{batchId}}.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"number\": \"B-0001\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"receivedAt\": \"2026-08-01\",\n    \"initialQty\": \"100.000\",\n    \"purchasePrice\": \"38.00\",\n    \"currency\": \"USD\",\n    \"rateSell\": \"12700.0000\",\n    \"supplier\": \"/api/suppliers/{{supplierId}}\",\n    \"receipt\": \"/api/receipts/{{receiptId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200 || pm.response.code === 201) {",
-                  "    const json = pm.response.json();",
-                  "    if (json.id !== undefined) { pm.collectionVariables.set('batchId', json.id); }",
-                  "}",
-                  "pm.test('Status code is successful', function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
-                  "});"
-                ]
-              }
-            }
-          ]
         },
         {
           "name": "Get Batches by id",
@@ -1485,66 +1458,8 @@
                 "batches",
                 "{{batchId}}"
               ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Batches",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/merge-patch+json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/batches/{{batchId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "batches",
-                "{{batchId}}"
-              ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"initialQty\": \"95.000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Batches",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/batches/{{batchId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "batches",
-                "{{batchId}}"
-              ]
-            }
+            "description": "Copy an id from \"List Batches\" (or from the Receipt Items response after posting the Receipt) into {{batchId}}."
           },
           "response": []
         }
@@ -1564,12 +1479,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipt-items",
+              "raw": "{{baseUrl}}/receipt_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "receipt-items"
+                "receipt_items"
               ]
             },
             "description": "GET collection of Receipt Items."
@@ -1591,18 +1506,18 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipt-items",
+              "raw": "{{baseUrl}}/receipt_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "receipt-items"
+                "receipt_items"
               ]
             },
-            "description": "Creates a new Receipt Items record and stores its id in {{receiptItemId}}.",
+            "description": "Creates a new Receipt Items record and stores its id in {{receiptItemId}}. No batch/total in the body — batch is created by the server only once the Receipt is posted, total is computed from price*quantity. Fails with 422 if the Receipt is not in draft status or the product is already on this Receipt.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"receipt\": \"/api/receipts/{{receiptId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"100.000\",\n    \"price\": \"38.00\",\n    \"currency\": \"USD\",\n    \"rate\": \"12500.0000\",\n    \"total\": \"3800.00\"\n}",
+              "raw": "{\n    \"receipt\": \"/api/receipts/{{receiptId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"quantity\": \"100.000\",\n    \"price\": \"38.00\",\n    \"currency\": \"USD\",\n    \"rate\": \"12500.0000\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1640,12 +1555,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "raw": "{{baseUrl}}/receipt_items/{{receiptItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "receipt-items",
+                "receipt_items",
                 "{{receiptItemId}}"
               ]
             }
@@ -1667,15 +1582,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "raw": "{{baseUrl}}/receipt_items/{{receiptItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "receipt-items",
+                "receipt_items",
                 "{{receiptItemId}}"
               ]
             },
+            "description": "Only quantity/price/currency/rate are patchable. Fails with 422 once the parent Receipt is no longer draft.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"price\": \"39.00\"\n}",
@@ -1699,15 +1615,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/receipt-items/{{receiptItemId}}",
+              "raw": "{{baseUrl}}/receipt_items/{{receiptItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "receipt-items",
+                "receipt_items",
                 "{{receiptItemId}}"
               ]
-            }
+            },
+            "description": "Fails with 422 once the parent Receipt is no longer draft."
           },
           "response": []
         }
@@ -1762,10 +1679,10 @@
                 "sales"
               ]
             },
-            "description": "Creates a new Sales record and stores its id in {{saleId}}.",
+            "description": "Creates a new Sales record and stores its id in {{saleId}}. number/status/soldBy/totalUsd/totalUzs/createdAt are set by the server (auto number like РН-00001, status always starts as draft). rate moved from Sale to SaleItem — see Sale Items.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"number\": \"РН-00001\",\n    \"docDate\": \"2026-08-02\",\n    \"customer\": \"/api/clients/{{clientId}}\",\n    \"rate\": \"12900.0000\",\n    \"totalUsd\": \"900.00\",\n    \"totalUzs\": \"0.00\",\n    \"soldBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "raw": "{\n    \"docDate\": \"2026-08-02\",\n    \"customer\": \"/api/clients/{{clientId}}\",\n    \"note\": \"\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1816,13 +1733,13 @@
           "response": []
         },
         {
-          "name": "Update Sales",
+          "name": "Change status Sales",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/merge-patch+json"
+                "value": "application/ld+json"
               },
               {
                 "key": "Accept",
@@ -1830,18 +1747,20 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sales/{{saleId}}",
+              "raw": "{{baseUrl}}/sales/{{saleId}}/change_status",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "sales",
-                "{{saleId}}"
+                "{{saleId}}",
+                "change_status"
               ]
             },
+            "description": "Only way to change status now (no generic PATCH on Sale). draft->posted re-validates stock, writes an OUT stock movement and a realized Profit entry per allocation. posted->cancelled writes ADJUST/reversed entries with the opposite sign (nothing is deleted). posted->draft is rejected.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "raw": "{\n    \"status\": \"posted\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1849,30 +1768,20 @@
               }
             }
           },
-          "response": []
-        },
-        {
-          "name": "Delete Sales",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/sales/{{saleId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "sales",
-                "{{saleId}}"
-              ]
             }
-          },
-          "response": []
+          ]
         }
       ]
     },
@@ -1890,12 +1799,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sale-items",
+              "raw": "{{baseUrl}}/sale_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "sale-items"
+                "sale_items"
               ]
             },
             "description": "GET collection of Sale Items."
@@ -1917,18 +1826,18 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sale-items",
+              "raw": "{{baseUrl}}/sale_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "sale-items"
+                "sale_items"
               ]
             },
-            "description": "Creates a new Sale Items record and stores its id in {{saleItemId}}.",
+            "description": "Creates a new Sale Items record and stores its id in {{saleItemId}}. No batch/total/costPrice/costCurrency/costRate in the body — the server picks batches automatically via FIFO (oldest receivedAt first, splitting across batches if needed) and computes cost/total; fails with 422 if stock across all batches of the product isn't enough. price is optional — if omitted, defaults to Product.priceUsd/priceUzs for the given currency (422 if neither was provided and the product has no default price). rate is the real UZS-per-USD exchange rate on the day of this sale line, always required regardless of currency — profit is reported in the batch's cost currency, so this rate is what converts revenue into that currency when it differs from the sale currency.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"20.000\",\n    \"price\": \"45.00\",\n    \"currency\": \"USD\",\n    \"total\": \"900.00\",\n    \"costPrice\": \"38.00\",\n    \"costCurrency\": \"USD\",\n    \"costRate\": \"12500.0000\"\n}",
+              "raw": "{\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"quantity\": \"20.000\",\n    \"price\": \"45.00\",\n    \"currency\": \"USD\",\n    \"rate\": \"12500.0000\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1966,12 +1875,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "raw": "{{baseUrl}}/sale_items/{{saleItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "sale-items",
+                "sale_items",
                 "{{saleItemId}}"
               ]
             }
@@ -1993,15 +1902,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "raw": "{{baseUrl}}/sale_items/{{saleItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "sale-items",
+                "sale_items",
                 "{{saleItemId}}"
               ]
             },
+            "description": "Only quantity/price/currency/rate are patchable. Changing quantity re-runs FIFO allocation from scratch. Fails with 422 once the parent Sale is no longer draft.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"price\": \"44.00\"\n}",
@@ -2025,15 +1935,68 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/sale-items/{{saleItemId}}",
+              "raw": "{{baseUrl}}/sale_items/{{saleItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "sale-items",
+                "sale_items",
                 "{{saleItemId}}"
               ]
-            }
+            },
+            "description": "Fails with 422 once the parent Sale is no longer draft. Its allocations are cascade-deleted."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sale Item Allocations",
+      "item": [
+        {
+          "name": "List Sale Item Allocations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale_item_allocations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale_item_allocations"
+              ]
+            },
+            "description": "Read-only ledger written by the server when a Sale Item is created/updated. One Sale Item can have several allocations (one per batch it was FIFO-split across), each with its own costPrice/costCurrency/costRate."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sale Item Allocations by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sale_item_allocations/{{saleItemAllocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sale_item_allocations",
+                "{{saleItemAllocationId}}"
+              ]
+            },
+            "description": "Copy an id from \"List Sale Item Allocations\" (or from the Sale Items response) into {{saleItemAllocationId}}."
           },
           "response": []
         }
@@ -2216,12 +2179,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payment-allocations",
+              "raw": "{{baseUrl}}/payment_allocations",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "payment-allocations"
+                "payment_allocations"
               ]
             },
             "description": "GET collection of Payment Allocations."
@@ -2243,12 +2206,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payment-allocations",
+              "raw": "{{baseUrl}}/payment_allocations",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "payment-allocations"
+                "payment_allocations"
               ]
             },
             "description": "Creates a new Payment Allocations record and stores its id in {{paymentAllocationId}}.",
@@ -2292,12 +2255,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "raw": "{{baseUrl}}/payment_allocations/{{paymentAllocationId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "payment-allocations",
+                "payment_allocations",
                 "{{paymentAllocationId}}"
               ]
             }
@@ -2319,12 +2282,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "raw": "{{baseUrl}}/payment_allocations/{{paymentAllocationId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "payment-allocations",
+                "payment_allocations",
                 "{{paymentAllocationId}}"
               ]
             },
@@ -2351,12 +2314,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payment-allocations/{{paymentAllocationId}}",
+              "raw": "{{baseUrl}}/payment_allocations/{{paymentAllocationId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "payment-allocations",
+                "payment_allocations",
                 "{{paymentAllocationId}}"
               ]
             }
@@ -2414,10 +2377,10 @@
                 "writeoffs"
               ]
             },
-            "description": "Creates a new Writeoffs record and stores its id in {{writeoffId}}.",
+            "description": "Creates a new Writeoffs record and stores its id in {{writeoffId}}. number/status/createdBy/createdAt are set by the server (auto number like СП-00001, status always starts as draft).",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"number\": \"СП-00001\",\n    \"docDate\": \"2026-08-03\",\n    \"reason\": \"Истёк срок годности\",\n    \"createdBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "raw": "{\n    \"docDate\": \"2026-08-03\",\n    \"reason\": \"Истёк срок годности\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2468,13 +2431,13 @@
           "response": []
         },
         {
-          "name": "Update Writeoffs",
+          "name": "Change status Writeoffs",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/merge-patch+json"
+                "value": "application/ld+json"
               },
               {
                 "key": "Accept",
@@ -2482,15 +2445,17 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}",
+              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}/change_status",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "writeoffs",
-                "{{writeoffId}}"
+                "{{writeoffId}}",
+                "change_status"
               ]
             },
+            "description": "Only way to change status now (no generic PATCH on Writeoff). draft->posted re-validates stock and writes a WRITEOFF stock movement per item. posted->cancelled writes ADJUST/reversed movements with the opposite sign. posted->draft is rejected.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"status\": \"posted\"\n}",
@@ -2501,30 +2466,20 @@
               }
             }
           },
-          "response": []
-        },
-        {
-          "name": "Delete Writeoffs",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/writeoffs/{{writeoffId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "writeoffs",
-                "{{writeoffId}}"
-              ]
             }
-          },
-          "response": []
+          ]
         }
       ]
     },
@@ -2542,12 +2497,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoff-items",
+              "raw": "{{baseUrl}}/writeoff_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "writeoff-items"
+                "writeoff_items"
               ]
             },
             "description": "GET collection of Writeoff Items."
@@ -2569,15 +2524,15 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoff-items",
+              "raw": "{{baseUrl}}/writeoff_items",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "writeoff-items"
+                "writeoff_items"
               ]
             },
-            "description": "Creates a new Writeoff Items record and stores its id in {{writeoffItemId}}.",
+            "description": "Creates a new Writeoff Items record and stores its id in {{writeoffItemId}}. Unlike Sale Items, batch is still picked manually here — no FIFO auto-allocation for writeoffs. Fails with 422 if the Writeoff is not draft or this batch is already on it.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"writeoff\": \"/api/writeoffs/{{writeoffId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"5.000\"\n}",
@@ -2618,12 +2573,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "raw": "{{baseUrl}}/writeoff_items/{{writeoffItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "writeoff-items",
+                "writeoff_items",
                 "{{writeoffItemId}}"
               ]
             }
@@ -2645,15 +2600,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "raw": "{{baseUrl}}/writeoff_items/{{writeoffItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "writeoff-items",
+                "writeoff_items",
                 "{{writeoffItemId}}"
               ]
             },
+            "description": "Fails with 422 once the parent Writeoff is no longer draft.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"quantity\": \"4.000\"\n}",
@@ -2677,15 +2633,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/writeoff-items/{{writeoffItemId}}",
+              "raw": "{{baseUrl}}/writeoff_items/{{writeoffItemId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "writeoff-items",
+                "writeoff_items",
                 "{{writeoffItemId}}"
               ]
-            }
+            },
+            "description": "Fails with 422 once the parent Writeoff is no longer draft."
           },
           "response": []
         }
@@ -2705,70 +2662,17 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/stock-movements",
+              "raw": "{{baseUrl}}/stock_movements",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "stock-movements"
+                "stock_movements"
               ]
             },
-            "description": "GET collection of Stock Movements."
+            "description": "Read-only ledger — no Post/Patch/Delete anymore. Entries are written by the server when Receipts/Sales/Writeoffs are posted (type=in/out/writeoff) or cancelled (type=adjust, reversing entry with the opposite sign). Remaining quantity for a batch/product is SUM(quantity) over this table."
           },
           "response": []
-        },
-        {
-          "name": "Create Stock Movements",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/ld+json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/stock-movements",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "stock-movements"
-              ]
-            },
-            "description": "Creates a new Stock Movements record and stores its id in {{stockMovementId}}.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"occurredAt\": \"{{$isoTimestamp}}\",\n    \"type\": \"in\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"100.000\",\n    \"docType\": \"receipt\",\n    \"docId\": {{receiptId}},\n    \"docNumber\": \"ПР-00001\",\n    \"createdBy\": \"/api/users/{{userId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200 || pm.response.code === 201) {",
-                  "    const json = pm.response.json();",
-                  "    if (json.id !== undefined) { pm.collectionVariables.set('stockMovementId', json.id); }",
-                  "}",
-                  "pm.test('Status code is successful', function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
-                  "});"
-                ]
-              }
-            }
-          ]
         },
         {
           "name": "Get Stock Movements by id",
@@ -2781,58 +2685,28 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
+              "raw": "{{baseUrl}}/stock_movements/{{stockMovementId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "stock-movements",
-                "{{stockMovementId}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Stock Movements",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/merge-patch+json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "stock-movements",
+                "stock_movements",
                 "{{stockMovementId}}"
               ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"note\": \"corrected manually\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "description": "Copy an id from \"List Stock Movements\" into {{stockMovementId}}."
           },
           "response": []
-        },
+        }
+      ]
+    },
+    {
+      "name": "Profits",
+      "item": [
         {
-          "name": "Delete Stock Movements",
+          "name": "List Profits",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [
               {
                 "key": "Accept",
@@ -2840,15 +2714,39 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/stock-movements/{{stockMovementId}}",
+              "raw": "{{baseUrl}}/profits",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "stock-movements",
-                "{{stockMovementId}}"
+                "profits"
               ]
-            }
+            },
+            "description": "Read-only profit ledger — no Post/Patch/Delete. One \"realized\" entry per Sale Item Allocation is written when a Sale is posted (revenue - cost, reported in the batch's cost currency — revenue is converted into that currency via the sale item's rate when it differs); posting below cost yields a negative realized entry (a real loss, not a reversal). Cancelling a posted Sale writes a \"reversed\" entry with the opposite sign — nothing is ever mutated or deleted, so SUM(profit) WHERE sale=X always reflects the current truth."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profits by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/profits/{{profitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profits",
+                "{{profitId}}"
+              ]
+            },
+            "description": "Copy an id from \"List Profits\" into {{profitId}}."
           },
           "response": []
         }
