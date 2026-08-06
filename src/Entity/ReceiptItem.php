@@ -23,17 +23,20 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'uniq_receipt_items_receipt_product', columns: ['receipt_id', 'product_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
         new Post(
             controller: ReceiptItemCreateAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Patch(
             controller: ReceiptItemUpdateAction::class,
             denormalizationContext: ['groups' => ['receipt-item-update:write']],
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Delete(
             controller: ReceiptItemDeleteAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
     ],
     denormalizationContext: ['groups' => ['receipt:write']],

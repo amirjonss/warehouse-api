@@ -24,17 +24,20 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'sale_items')]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Get(security: "is_granted('ROLE_SALES')"),
         new Post(
             controller: SaleItemCreateAction::class,
+            security: "is_granted('ROLE_SALES')",
         ),
         new Patch(
             controller: SaleItemUpdateAction::class,
             denormalizationContext: ['groups' => ['sale-item-update:write']],
+            security: "is_granted('ROLE_SALES')",
         ),
         new Delete(
             controller: SaleItemDeleteAction::class,
+            security: "is_granted('ROLE_SALES')",
         ),
     ],
     denormalizationContext: ['groups' => ['sale:write']],

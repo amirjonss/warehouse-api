@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e5afa606-cbeb-4439-854c-940a03184b8a",
     "name": "Warehouse API",
-    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...). Receipt/Sale/Writeoff no longer accept number/status/createdBy/receivedBy/totalUsd/totalUzs on create — the server generates the number and always starts in draft. Status only changes via the dedicated POST .../change_status endpoint (not PATCH). SaleItem no longer accepts batch/total/costPrice/costCurrency/costRate — the server picks batches via FIFO automatically and computes cost/total; price is optional and defaults to Product.priceUsd/priceUzs if omitted. StockMovement, SaleItemAllocation and Profit are read-only ledgers written only by the server when a document is posted/cancelled.",
+    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...). Receipt/Sale/Writeoff no longer accept number/status/createdBy/receivedBy/totalUsd/totalUzs on create — the server generates the number and always starts in draft. Status only changes via the dedicated POST .../change_status endpoint (not PATCH). SaleItem no longer accepts batch/total/costPrice/costCurrency/costRate — the server picks batches via FIFO automatically and computes cost/total; price is optional and defaults to Product.priceUsd/priceUzs if omitted. StockMovement, SaleItemAllocation and Profit are read-only ledgers written only by the server when a document is posted/cancelled.\n\nRBAC: two roles exist, ROLE_ADMIN (everything) and ROLE_SALES (Sales/Payments/Clients/Debt/read-only catalog — no Suppliers/Receipts/Writeoffs/StockMovements/Profits, and purchasePrice/costPrice/costCurrency/costRate are stripped from responses). ROLE_ADMIN implicitly includes everything ROLE_SALES can do (role_hierarchy). See each folder's description for its exact requirement. There is no API endpoint to assign roles — a brand-new registered user has no role at all (403 everywhere) until an admin runs, on the server: `php bin/console ask:roles:add-to-user` (prompts for user id, then role — e.g. ROLE_ADMIN or ROLE_SALES). This collection's default user ({{userEmail}}) already has ROLE_ADMIN; {{salesUserEmail}} is a second pre-provisioned account with ROLE_SALES for testing the restricted role — login separately with it to get a second token, since the collection only stores one {{accessToken}} at a time.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -29,6 +29,16 @@
     {
       "key": "userPassword",
       "value": "SuperSecret123!",
+      "type": "string"
+    },
+    {
+      "key": "salesUserEmail",
+      "value": "sales@example.com",
+      "type": "string"
+    },
+    {
+      "key": "salesUserPassword",
+      "value": "SalesPass123!",
       "type": "string"
     },
     {
@@ -140,6 +150,7 @@
   "item": [
     {
       "name": "Auth & Users",
+      "description": "Register/Login/Refresh/Is email unique are open to anyone. About me works for any authenticated user. List users/Get user by id/Change password require ROLE_ADMIN unless it's your own account (object == user || ROLE_ADMIN).",
       "item": [
         {
           "name": "Register user",
@@ -444,6 +455,7 @@
     },
     {
       "name": "Categories",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read. Create/Update/Delete require ROLE_ADMIN.",
       "item": [
         {
           "name": "List Categories",
@@ -607,6 +619,7 @@
     },
     {
       "name": "Exchange Rates",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read. Create/Update/Delete require ROLE_ADMIN.",
       "item": [
         {
           "name": "List Exchange Rates",
@@ -752,6 +765,7 @@
     },
     {
       "name": "Products",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read (including /products/stock). Create/Update require ROLE_ADMIN. purchasePrice is hidden from the JSON response entirely for ROLE_SALES (present for ROLE_ADMIN) via ApiProperty security, not just endpoint-level access control.",
       "item": [
         {
           "name": "List Products",
@@ -939,6 +953,7 @@
     },
     {
       "name": "Clients",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for read/create/update (including /clients/debt). Delete requires ROLE_ADMIN.",
       "item": [
         {
           "name": "List Clients",
@@ -1126,6 +1141,7 @@
     },
     {
       "name": "Suppliers",
+      "description": "Requires: ROLE_ADMIN for everything. ROLE_SALES has no access at all.",
       "item": [
         {
           "name": "List Suppliers",
@@ -1289,6 +1305,7 @@
     },
     {
       "name": "Receipts",
+      "description": "Requires: ROLE_ADMIN for everything, including change_status. ROLE_SALES has no access at all.",
       "item": [
         {
           "name": "List Receipts",
@@ -1444,6 +1461,7 @@
     },
     {
       "name": "Batches",
+      "description": "Requires: ROLE_ADMIN. Read-only (GetCollection/Get only — no Post/Patch/Delete anymore, batches are only ever created server-side when a Receipt is posted). ROLE_SALES has no access.",
       "item": [
         {
           "name": "List Batches",
@@ -1496,6 +1514,7 @@
     },
     {
       "name": "Receipt Items",
+      "description": "Requires: ROLE_ADMIN for everything. ROLE_SALES has no access at all.",
       "item": [
         {
           "name": "List Receipt Items",
@@ -1661,6 +1680,7 @@
     },
     {
       "name": "Sales",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything, including change_status.",
       "item": [
         {
           "name": "List Sales",
@@ -1816,6 +1836,7 @@
     },
     {
       "name": "Sale Items",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything.",
       "item": [
         {
           "name": "List Sale Items",
@@ -1981,6 +2002,7 @@
     },
     {
       "name": "Sale Item Allocations",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read. costPrice/costCurrency/costRate are hidden from the JSON response entirely for ROLE_SALES (present for ROLE_ADMIN) via ApiProperty security — quantity/batch/saleItem are still visible.",
       "item": [
         {
           "name": "List Sale Item Allocations",
@@ -2033,6 +2055,7 @@
     },
     {
       "name": "Payments",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything, including change_status.",
       "item": [
         {
           "name": "List Payments",
@@ -2188,6 +2211,7 @@
     },
     {
       "name": "Payment Allocations",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything.",
       "item": [
         {
           "name": "List Payment Allocations",
@@ -2353,6 +2377,7 @@
     },
     {
       "name": "Writeoffs",
+      "description": "Requires: ROLE_ADMIN for everything, including change_status. ROLE_SALES has no access at all.",
       "item": [
         {
           "name": "List Writeoffs",
@@ -2508,6 +2533,7 @@
     },
     {
       "name": "Writeoff Items",
+      "description": "Requires: ROLE_ADMIN for everything. ROLE_SALES has no access at all.",
       "item": [
         {
           "name": "List Writeoff Items",
@@ -2673,6 +2699,7 @@
     },
     {
       "name": "Stock Movements",
+      "description": "Requires: ROLE_ADMIN. ROLE_SALES has no access (use /products/stock instead for remaining quantity).",
       "item": [
         {
           "name": "List Stock Movements",
@@ -2725,6 +2752,7 @@
     },
     {
       "name": "Profits",
+      "description": "Requires: ROLE_ADMIN. ROLE_SALES has no access — margin is intentionally hidden from the sales role.",
       "item": [
         {
           "name": "List Profits",
@@ -2777,6 +2805,7 @@
     },
     {
       "name": "Debts",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read.",
       "item": [
         {
           "name": "List Debts",

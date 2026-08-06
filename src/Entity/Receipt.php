@@ -21,15 +21,17 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Table(name: 'receipts')]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
         new Post(
             controller: ReceiptCreateAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Post(
             uriTemplate: '/receipts/{id}/change_status',
             controller: ReceiptChangeStatusAction::class,
-            denormalizationContext: ['groups' => ['receipts-status:write']]
+            denormalizationContext: ['groups' => ['receipts-status:write']],
+            security: "is_granted('ROLE_ADMIN')",
         )
     ],
     denormalizationContext: ['groups' => ['receipts:write']]

@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -18,19 +19,17 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 #[ApiResource(
     operations: [
-        new GetCollection(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
         new GetCollection(
             uriTemplate: '/products/stock',
             controller: ProductStockAction::class,
+            security: "is_granted('ROLE_SALES')",
             output: ProductStockDto::class,
             read: false
         ),
-        new Get(),
-
-        new Post(),
-
-        new Patch(),
-
+        new Get(security: "is_granted('ROLE_SALES')"),
+        new Post(security: "is_granted('ROLE_ADMIN')"),
+        new Patch(security: "is_granted('ROLE_ADMIN')"),
     ]
 )]
 class Product
@@ -66,6 +65,7 @@ class Product
     private ?string $minStock = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?string $purchasePrice = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2, nullable: true)]

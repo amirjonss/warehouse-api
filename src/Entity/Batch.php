@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 use App\Component\Product\Enums\Currency;
 use App\Repository\BatchRepository;
 use DateTimeInterface;
@@ -13,7 +15,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: BatchRepository::class)]
 #[ORM\Table(name: 'batches')]
 #[ORM\UniqueConstraint(name: 'uniq_batches_product_number', columns: ['product_id', 'number'])]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
+    ],
+)]
 #[Assert\Expression(
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRateSell() === "1"',
     message: 'rateSell must be 1 for a UZS batch',

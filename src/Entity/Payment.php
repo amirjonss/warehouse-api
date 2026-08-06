@@ -25,15 +25,17 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'payments')]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Get(security: "is_granted('ROLE_SALES')"),
         new Post(
             controller: PaymentCreateAction::class,
+            security: "is_granted('ROLE_SALES')",
         ),
         new Post(
             uriTemplate: '/payments/{id}/change_status',
             controller: PaymentChangeStatusAction::class,
-            denormalizationContext: ['groups' => ['payments-status:write']]
+            denormalizationContext: ['groups' => ['payments-status:write']],
+            security: "is_granted('ROLE_SALES')",
         )
     ],
     denormalizationContext: ['groups' => ['payments:write']]

@@ -22,17 +22,20 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'payment_allocations')]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Get(security: "is_granted('ROLE_SALES')"),
         new Post(
             controller: PaymentAllocationCreateAction::class,
+            security: "is_granted('ROLE_SALES')",
         ),
         new Patch(
             controller: PaymentAllocationUpdateAction::class,
             denormalizationContext: ['groups' => ['payment-allocation-update:write']],
+            security: "is_granted('ROLE_SALES')",
         ),
         new Delete(
             controller: PaymentAllocationDeleteAction::class,
+            security: "is_granted('ROLE_SALES')",
         ),
     ],
     denormalizationContext: ['groups' => ['payment-allocation:write']],

@@ -19,8 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_profits_batch', columns: ['batch_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
     ],
 )]
 class Profit

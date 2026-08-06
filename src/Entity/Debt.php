@@ -19,8 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_debts_payment', columns: ['payment_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Get(security: "is_granted('ROLE_SALES')"),
     ],
 )]
 class Debt

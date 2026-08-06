@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -16,8 +17,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'uniq_sale_item_allocations_sale_item_batch', columns: ['sale_item_id', 'batch_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Get(security: "is_granted('ROLE_SALES')"),
     ],
 )]
 #[Assert\Expression(
@@ -43,12 +44,15 @@ class SaleItemAllocation
     private ?string $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?string $costPrice = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?Currency $costCurrency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?string $costRate = null;
 
     public function getId(): ?int

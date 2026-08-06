@@ -17,17 +17,18 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'clients')]
 #[ApiResource(
     operations: [
-        new GetCollection(),
+        new GetCollection(security: "is_granted('ROLE_SALES')"),
         new GetCollection(
             uriTemplate: '/clients/debt',
             controller: ClientDebtAction::class,
+            security: "is_granted('ROLE_SALES')",
             output: ClientDebtDto::class,
             read: false
         ),
-        new Get(),
-        new Post(),
-        new Patch(),
-        new Delete(),
+        new Get(security: "is_granted('ROLE_SALES')"),
+        new Post(security: "is_granted('ROLE_SALES')"),
+        new Patch(security: "is_granted('ROLE_SALES')"),
+        new Delete(security: "is_granted('ROLE_ADMIN')"),
     ],
 )]
 class Client

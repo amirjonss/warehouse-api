@@ -22,16 +22,19 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'uniq_writeoff_items_writeoff_batch', columns: ['writeoff_id', 'batch_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(),
-        new Get(),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
         new Post(
             controller: WriteoffItemCreateAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Patch(
             controller: WriteoffItemUpdateAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Delete(
             controller: WriteoffItemDeleteAction::class,
+            security: "is_granted('ROLE_ADMIN')",
         ),
     ],
     denormalizationContext: ['groups' => ['writeoff:write']],

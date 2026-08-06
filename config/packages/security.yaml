@@ -71,3 +71,6 @@ security:
     access_control:
         - { path: ^/api/.+, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api, roles: IS_AUTHENTICATED_ANONYMOUSLY } # Allows accessing the Swagger UI
+
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_SALES]
