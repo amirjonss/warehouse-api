@@ -11,12 +11,14 @@ use App\Component\Writeoff\Exceptions\InsufficientBatchQuantityException;
 use App\Component\Writeoff\Exceptions\WriteoffStatusTransitionException;
 use App\Entity\Writeoff;
 use App\Repository\BatchRepository;
+use App\Repository\WriteoffRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class WriteoffChangeStatusService
 {
     public function __construct(
         private BatchRepository $batchRepository,
+        private WriteoffRepository $writeoffRepository,
         private StockMovementFactory $stockMovementFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
@@ -37,21 +39,66 @@ class WriteoffChangeStatusService
         }
 
         if ($newStatus === DocStatus::POSTED) {
-            if (count($writeoff->getItems()) === 0) {
-                throw new WriteoffStatusTransitionException('Cannot post a writeoff without items.');
-            }
-
-            $this->assertHasEnoughQuantity($writeoff);
-            $this->recordWriteoffMovements($writeoff);
+            return $this->post($writeoff, $previousStatus);
         }
 
         if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
-            $this->reverseMovements($writeoff);
+            return $this->cancel($writeoff, $previousStatus);
         }
 
         $this->entityManager->flush();
 
         return $writeoff;
+    }
+
+    private function post(Writeoff $writeoff, ?DocStatus $previousStatus): Writeoff
+    {
+        if (count($writeoff->getItems()) === 0) {
+            throw new WriteoffStatusTransitionException('Cannot post a writeoff without items.');
+        }
+
+        return $this->entityManager->wrapInTransaction(function () use ($writeoff, $previousStatus) {
+            $this->writeoffRepository->lockWriteoffs([$writeoff]);
+            $this->assertNotChangedConcurrently($writeoff, $previousStatus);
+
+            $this->batchRepository->lockBatches($this->collectBatches($writeoff));
+
+            $this->assertHasEnoughQuantity($writeoff);
+            $this->recordWriteoffMovements($writeoff);
+
+            return $writeoff;
+        });
+    }
+
+    private function cancel(Writeoff $writeoff, ?DocStatus $previousStatus): Writeoff
+    {
+        return $this->entityManager->wrapInTransaction(function () use ($writeoff, $previousStatus) {
+            $this->writeoffRepository->lockWriteoffs([$writeoff]);
+            $this->assertNotChangedConcurrently($writeoff, $previousStatus);
+
+            $this->reverseMovements($writeoff);
+
+            return $writeoff;
+        });
+    }
+
+    private function assertNotChangedConcurrently(Writeoff $writeoff, ?DocStatus $expectedStatus): void
+    {
+        if ($expectedStatus !== null && $this->writeoffRepository->getCurrentStatus($writeoff->getId()) !== $expectedStatus->value) {
+            throw new WriteoffStatusTransitionException(
+                'This writeoff was already changed by another request. Reload it and try again.'
+            );
+        }
+    }
+
+    private function collectBatches(Writeoff $writeoff): array
+    {
+        $batches = [];
+        foreach ($writeoff->getItems() as $writeoffItem) {
+            $batches[] = $writeoffItem->getBatch();
+        }
+
+        return $batches;
     }
 
     private function assertHasEnoughQuantity(Writeoff $writeoff): void

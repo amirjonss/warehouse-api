@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Writeoff;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -29,5 +30,38 @@ class WriteoffRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
 
         return $result['number'] ?? null;
+    }
+
+    /**
+     * Locks the given writeoffs (deduplicated, ascending by id) with SELECT ... FOR UPDATE so a
+     * concurrent request can't process the same status transition twice. Always lock through
+     * this method — locking in any other order can deadlock two transactions against each other.
+     *
+     * @param Writeoff[] $writeoffs
+     */
+    public function lockWriteoffs(array $writeoffs): void
+    {
+        $unique = [];
+        foreach ($writeoffs as $writeoff) {
+            $unique[$writeoff->getId()] = $writeoff;
+        }
+        ksort($unique);
+
+        foreach ($unique as $writeoff) {
+            $this->getEntityManager()->lock($writeoff, LockMode::PESSIMISTIC_WRITE);
+        }
+    }
+
+    /**
+     * Reads the status directly from the DB (bypassing the identity map, which already holds
+     * this request's pending change) — call after lockWriteoffs() to detect a concurrent
+     * change_status on the same writeoff.
+     */
+    public function getCurrentStatus(int $id): string
+    {
+        return (string) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT status FROM writeoffs WHERE id = :id',
+            ['id' => $id]
+        );
     }
 }

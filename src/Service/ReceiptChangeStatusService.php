@@ -11,6 +11,8 @@ use App\Component\StockMovement\StockMovementFactory;
 use App\Component\User\CurrentUser;
 use App\Entity\Receipt;
 use App\Repository\BatchRepository;
+use App\Repository\ProductRepository;
+use App\Repository\ReceiptRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ReceiptChangeStatusService
@@ -18,6 +20,8 @@ class ReceiptChangeStatusService
     public function __construct(
         private BatchFactory $batchFactory,
         private BatchRepository $batchRepository,
+        private ProductRepository $productRepository,
+        private ReceiptRepository $receiptRepository,
         private StockMovementFactory $stockMovementFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
@@ -38,11 +42,11 @@ class ReceiptChangeStatusService
         }
 
         if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
-            return $this->cancel($receipt);
+            return $this->cancel($receipt, $previousStatus);
         }
 
         if ($newStatus === DocStatus::POSTED) {
-            return $this->post($receipt);
+            return $this->post($receipt, $previousStatus);
         }
 
         $this->entityManager->flush();
@@ -50,13 +54,18 @@ class ReceiptChangeStatusService
         return $receipt;
     }
 
-    private function post(Receipt $receipt): Receipt
+    private function post(Receipt $receipt, ?DocStatus $previousStatus): Receipt
     {
         if (count($receipt->getItems()) === 0) {
             throw new ReceiptStatusTransitionException('Cannot post a receipt without items.');
         }
 
-        return $this->entityManager->wrapInTransaction(function () use ($receipt) {
+        return $this->entityManager->wrapInTransaction(function () use ($receipt, $previousStatus) {
+            $this->receiptRepository->lockReceipts([$receipt]);
+            $this->assertNotChangedConcurrently($receipt, $previousStatus);
+
+            $this->productRepository->lockProducts($this->collectProducts($receipt));
+
             foreach ($receipt->getItems() as $receiptItem) {
                 if ($receiptItem->getBatch() !== null) {
                     continue;
@@ -83,19 +92,32 @@ class ReceiptChangeStatusService
         });
     }
 
-    private function cancel(Receipt $receipt): Receipt
+    private function collectProducts(Receipt $receipt): array
     {
+        $products = [];
         foreach ($receipt->getItems() as $receiptItem) {
-            $batch = $receiptItem->getBatch();
-            if ($batch !== null && $this->batchRepository->isUsed($batch)) {
-                throw new ReceiptStatusTransitionException(sprintf(
-                    'Batch "%s" is already used and the receipt cannot be cancelled.',
-                    $batch->getNumber()
-                ));
-            }
+            $products[] = $receiptItem->getProduct();
         }
 
-        return $this->entityManager->wrapInTransaction(function () use ($receipt) {
+        return $products;
+    }
+
+    private function cancel(Receipt $receipt, ?DocStatus $previousStatus): Receipt
+    {
+        return $this->entityManager->wrapInTransaction(function () use ($receipt, $previousStatus) {
+            $this->receiptRepository->lockReceipts([$receipt]);
+            $this->assertNotChangedConcurrently($receipt, $previousStatus);
+
+            foreach ($receipt->getItems() as $receiptItem) {
+                $batch = $receiptItem->getBatch();
+                if ($batch !== null && $this->batchRepository->isUsed($batch)) {
+                    throw new ReceiptStatusTransitionException(sprintf(
+                        'Batch "%s" is already used and the receipt cannot be cancelled.',
+                        $batch->getNumber()
+                    ));
+                }
+            }
+
             foreach ($receipt->getItems() as $receiptItem) {
                 $batch = $receiptItem->getBatch();
                 if ($batch === null) {
@@ -108,6 +130,15 @@ class ReceiptChangeStatusService
 
             return $receipt;
         });
+    }
+
+    private function assertNotChangedConcurrently(Receipt $receipt, ?DocStatus $expectedStatus): void
+    {
+        if ($expectedStatus !== null && $this->receiptRepository->getCurrentStatus($receipt->getId()) !== $expectedStatus->value) {
+            throw new ReceiptStatusTransitionException(
+                'This receipt was already changed by another request. Reload it and try again.'
+            );
+        }
     }
 
     private function getPreviousStatus(Receipt $receipt): ?DocStatus

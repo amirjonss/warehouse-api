@@ -6,6 +6,7 @@ use App\Entity\Batch;
 use App\Entity\Product;
 use App\Entity\StockMovement;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -51,6 +52,27 @@ class BatchRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
 
         return (string) $result;
+    }
+
+    /**
+     * Locks the given batches (deduplicated, ascending by id) with SELECT ... FOR UPDATE
+     * so a concurrent transaction can't read/consume the same remaining quantity before
+     * this one commits. Callers must always lock through this method — locking in any
+     * other order can deadlock two transactions against each other.
+     *
+     * @param Batch[] $batches
+     */
+    public function lockBatches(array $batches): void
+    {
+        $unique = [];
+        foreach ($batches as $batch) {
+            $unique[$batch->getId()] = $batch;
+        }
+        ksort($unique);
+
+        foreach ($unique as $batch) {
+            $this->getEntityManager()->lock($batch, LockMode::PESSIMISTIC_WRITE);
+        }
     }
 
     public function getRemainingQtyForProduct(Product $product): string

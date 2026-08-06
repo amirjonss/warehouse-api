@@ -107,6 +107,11 @@
       "type": "string"
     },
     {
+      "key": "debtId",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "paymentId",
       "value": "",
       "type": "string"
@@ -959,6 +964,30 @@
           "response": []
         },
         {
+          "name": "List Client Debt",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/debt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "debt"
+              ]
+            },
+            "description": "Read-only report: every client with outstanding debt (id, name, debtUsd, debtUzs) = SUM(Debt.amount) per currency from the debts ledger (see Debts folder) — not a live aggregation over sales/payments. Clients with nothing owed still appear with 0.00/0.00."
+          },
+          "response": []
+        },
+        {
           "name": "Create Clients",
           "request": {
             "method": "POST",
@@ -1385,7 +1414,7 @@
                 "change_status"
               ]
             },
-            "description": "Only way to change status now (no generic PATCH on Receipt). draft->posted creates a Batch per item and writes an IN stock movement for each. posted->cancelled only works if none of the batches were used yet (deletes them and their movements). posted->draft is rejected.",
+            "description": "Only way to change status now (no generic PATCH on Receipt). draft->posted creates a Batch per item and writes an IN stock movement for each. posted->cancelled only works if none of the batches were used yet (deletes them and their movements). posted->draft is rejected. The receipt row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same receipt can't both succeed — the loser gets 422 'already changed by another request'.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"status\": \"posted\"\n}",
@@ -1757,7 +1786,7 @@
                 "change_status"
               ]
             },
-            "description": "Only way to change status now (no generic PATCH on Sale). draft->posted re-validates stock, writes an OUT stock movement and a realized Profit entry per allocation. posted->cancelled writes ADJUST/reversed entries with the opposite sign (nothing is deleted). posted->draft is rejected.",
+            "description": "Only way to change status now (no generic PATCH on Sale). draft->posted re-runs FIFO allocation fresh for every item (not just re-checking the batches picked when the item was added to the draft — stock may have moved since then, so the batches actually consumed, and therefore cost/profit, can differ from what GET /sale_item_allocations showed while still draft), then writes an OUT stock movement, a realized Profit entry per allocation, and a docType=sale Debt entry per currency. posted->cancelled fails with 422 if any posted Payment still has an allocation against this sale (cancel the payment first) — otherwise writes ADJUST/reversed/opposite-sign entries to StockMovement/Profit/Debt (nothing is deleted). posted->draft is rejected. The sale row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same sale can't both succeed — the loser gets 422 'already changed by another request'.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"status\": \"posted\"\n}",
@@ -2051,10 +2080,10 @@
                 "payments"
               ]
             },
-            "description": "Creates a new Payments record and stores its id in {{paymentId}}.",
+            "description": "Creates a new Payments record and stores its id in {{paymentId}}. number/status/acceptedBy/createdAt are set by the server (auto number like ОП-00001, status always starts as draft, acceptedBy = current user).",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"number\": \"ОП-00001\",\n    \"docDate\": \"2026-08-03\",\n    \"client\": \"/api/clients/{{clientId}}\",\n    \"amount\": \"900.00\",\n    \"currency\": \"USD\",\n    \"method\": \"cash\",\n    \"acceptedBy\": \"/api/users/{{userId}}\",\n    \"createdAt\": \"{{$isoTimestamp}}\",\n    \"status\": \"draft\"\n}",
+              "raw": "{\n    \"docDate\": \"2026-08-03\",\n    \"client\": \"/api/clients/{{clientId}}\",\n    \"amount\": \"1200000.00\",\n    \"currency\": \"UZS\",\n    \"method\": \"cash\",\n    \"note\": \"\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2105,13 +2134,13 @@
           "response": []
         },
         {
-          "name": "Update Payments",
+          "name": "Change status Payments",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/merge-patch+json"
+                "value": "application/ld+json"
               },
               {
                 "key": "Accept",
@@ -2119,18 +2148,20 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/change_status",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "payments",
-                "{{paymentId}}"
+                "{{paymentId}}",
+                "change_status"
               ]
             },
+            "description": "Only way to change status now (no generic PATCH on Payment). draft->posted requires at least one allocation (422 PaymentStatusTransitionException otherwise — a payment can't be posted and then allocated later, since allocations can only be added while draft), checks that SUM(amountSpent) across allocations doesn't exceed Payment.amount, and that SUM(amountClosed) per sale+currency doesn't exceed that sale's outstanding debt read from the debts ledger (422 InsufficientPaymentAmountException otherwise), then writes a docType=payment, -amountClosed entry to Debts for each allocation. posted->cancelled writes the opposite-sign (+amountClosed) reversal entries to Debts — nothing is deleted, GET /debts?payment=... shows both. posted->draft is rejected. The payment row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same payment can't both succeed — the loser gets 422 'already changed by another request'.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"posted\",\n    \"postedAt\": \"{{$isoTimestamp}}\"\n}",
+              "raw": "{\n    \"status\": \"posted\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2138,30 +2169,20 @@
               }
             }
           },
-          "response": []
-        },
-        {
-          "name": "Delete Payments",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/payments/{{paymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments",
-                "{{paymentId}}"
-              ]
             }
-          },
-          "response": []
+          ]
         }
       ]
     },
@@ -2214,10 +2235,10 @@
                 "payment_allocations"
               ]
             },
-            "description": "Creates a new Payment Allocations record and stores its id in {{paymentAllocationId}}.",
+            "description": "Creates a new Payment Allocations record and stores its id in {{paymentAllocationId}}. No docRate, no amountClosed in the body — the server computes amountClosed from amountSpent (in Payment.currency) and payRate: direct if currency === Payment.currency, amountSpent/payRate if this allocation's currency is USD and Payment.currency is UZS, amountSpent*payRate the other way round. payRate is required whenever currency differs from Payment.currency. Fails with 422 if the Payment is not draft, if sale is missing, or if the sale is not posted yet (no debt exists to pay against).",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"payment\": \"/api/payments/{{paymentId}}\",\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"currency\": \"USD\",\n    \"amountClosed\": \"900.00\",\n    \"amountSpent\": \"900.00\",\n    \"docRate\": \"12900.0000\",\n    \"payRate\": \"12900.0000\",\n    \"isRounding\": false\n}",
+              "raw": "{\n    \"payment\": \"/api/payments/{{paymentId}}\",\n    \"sale\": \"/api/sales/{{saleId}}\",\n    \"currency\": \"USD\",\n    \"amountSpent\": \"1200000.00\",\n    \"payRate\": \"12000.0000\",\n    \"isRounding\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2291,9 +2312,10 @@
                 "{{paymentAllocationId}}"
               ]
             },
+            "description": "Only currency/amountSpent/payRate/isRounding are patchable; amountClosed is recomputed automatically. Fails with 422 once the parent Payment is no longer draft.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"isRounding\": true\n}",
+              "raw": "{\n    \"amountSpent\": \"1250000.00\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2322,7 +2344,8 @@
                 "payment_allocations",
                 "{{paymentAllocationId}}"
               ]
-            }
+            },
+            "description": "Fails with 422 once the parent Payment is no longer draft."
           },
           "response": []
         }
@@ -2455,7 +2478,7 @@
                 "change_status"
               ]
             },
-            "description": "Only way to change status now (no generic PATCH on Writeoff). draft->posted re-validates stock and writes a WRITEOFF stock movement per item. posted->cancelled writes ADJUST/reversed movements with the opposite sign. posted->draft is rejected.",
+            "description": "Only way to change status now (no generic PATCH on Writeoff). draft->posted re-validates stock and writes a WRITEOFF stock movement per item. posted->cancelled writes ADJUST/reversed movements with the opposite sign. posted->draft is rejected. The writeoff row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same writeoff can't both succeed — the loser gets 422 'already changed by another request'.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"status\": \"posted\"\n}",
@@ -2532,7 +2555,7 @@
                 "writeoff_items"
               ]
             },
-            "description": "Creates a new Writeoff Items record and stores its id in {{writeoffItemId}}. Unlike Sale Items, batch is still picked manually here — no FIFO auto-allocation for writeoffs. Fails with 422 if the Writeoff is not draft or this batch is already on it.",
+            "description": "Creates a new Writeoff Items record and stores its id in {{writeoffItemId}}. Unlike Sale Items, batch is still picked manually here — no FIFO auto-allocation for writeoffs. Fails with 422 if the Writeoff is not draft, this batch is already on it, or the batch doesn't belong to the given product.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"writeoff\": \"/api/writeoffs/{{writeoffId}}\",\n    \"product\": \"/api/products/{{productId}}\",\n    \"batch\": \"/api/batches/{{batchId}}\",\n    \"quantity\": \"5.000\"\n}",
@@ -2609,7 +2632,7 @@
                 "{{writeoffItemId}}"
               ]
             },
-            "description": "Fails with 422 once the parent Writeoff is no longer draft.",
+            "description": "Fails with 422 once the parent Writeoff is no longer draft, or if product/batch are patched to a mismatched pair.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"quantity\": \"4.000\"\n}",
@@ -2747,6 +2770,58 @@
               ]
             },
             "description": "Copy an id from \"List Profits\" into {{profitId}}."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debts",
+      "item": [
+        {
+          "name": "List Debts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debts"
+              ]
+            },
+            "description": "Read-only client debt ledger — no Post/Patch/Delete. One entry per event that changes a client's debt: docType=sale, +amount when a Sale is posted (per currency bucket); docType=payment, -amount per Payment Allocation when a Payment is posted. Cancelling either writes the opposite-sign entry (docType unchanged) — nothing is mutated or deleted. SUM(amount) WHERE sale=X or WHERE client=X is the current balance (see GET /clients/debt for the pre-aggregated version)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Debts by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debts/{{debtId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debts",
+                "{{debtId}}"
+              ]
+            },
+            "description": "Copy an id from \"List Debts\" into {{debtId}}."
           },
           "response": []
         }

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Component\Core\Enums\DocStatus;
+use App\Component\WriteoffItem\Exceptions\BatchProductMismatchException;
 use App\Component\WriteoffItem\Exceptions\DuplicateWriteoffItemException;
 use App\Component\WriteoffItem\Exceptions\WriteoffNotEditableException;
 use App\Entity\WriteoffItem;
@@ -18,6 +19,15 @@ class WriteoffItemValidationService
     {
         if ($data->getWriteoff()->getStatus() !== DocStatus::DRAFT) {
             throw new WriteoffNotEditableException('Cannot add items to a writeoff that is not in draft status.');
+        }
+
+        if ($data->getBatch()->getProduct() !== $data->getProduct()) {
+            throw new BatchProductMismatchException(sprintf(
+                'Batch "%s" belongs to product "%s", not "%s".',
+                $data->getBatch()->getNumber(),
+                $data->getBatch()->getProduct()->getName(),
+                $data->getProduct()->getName()
+            ));
         }
 
         $existingItem = $this->writeoffItemRepository->findOneBy([

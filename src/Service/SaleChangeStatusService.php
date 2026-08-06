@@ -6,23 +6,28 @@ use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\DocumentType;
 use App\Component\Core\Enums\MovementType;
 use App\Component\Core\Enums\ProfitEntryType;
+use App\Component\Debt\DebtFactory;
+use App\Component\Product\Enums\Currency;
 use App\Component\Profit\ProfitFactory;
-use App\Component\Sale\Exceptions\InsufficientBatchQuantityException;
 use App\Component\Sale\Exceptions\SaleStatusTransitionException;
 use App\Component\SaleItem\SaleItemProfitCalculator;
 use App\Component\StockMovement\StockMovementFactory;
 use App\Component\User\CurrentUser;
 use App\Entity\Sale;
-use App\Repository\BatchRepository;
+use App\Repository\PaymentAllocationRepository;
+use App\Repository\SaleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class SaleChangeStatusService
 {
     public function __construct(
-        private BatchRepository $batchRepository,
+        private SaleRepository $saleRepository,
+        private SaleItemAllocationService $saleItemAllocationService,
+        private PaymentAllocationRepository $paymentAllocationRepository,
         private StockMovementFactory $stockMovementFactory,
         private SaleItemProfitCalculator $saleItemProfitCalculator,
         private ProfitFactory $profitFactory,
+        private DebtFactory $debtFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
@@ -42,18 +47,11 @@ class SaleChangeStatusService
         }
 
         if ($newStatus === DocStatus::POSTED) {
-            if (count($sale->getItems()) === 0) {
-                throw new SaleStatusTransitionException('Cannot post a sale without items.');
-            }
-
-            $this->assertHasEnoughQuantity($sale);
-            $this->recordOutMovements($sale);
-            $this->recordProfitEntries($sale);
+            return $this->post($sale, $previousStatus);
         }
 
         if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
-            $this->reverseMovements($sale);
-            $this->reverseProfitEntries($sale);
+            return $this->cancel($sale, $previousStatus);
         }
 
         $this->entityManager->flush();
@@ -61,35 +59,58 @@ class SaleChangeStatusService
         return $sale;
     }
 
-    private function assertHasEnoughQuantity(Sale $sale): void
+    private function post(Sale $sale, ?DocStatus $previousStatus): Sale
     {
-        $requestedQtyByBatch = [];
-        $batchesById = [];
-
-        foreach ($sale->getItems() as $saleItem) {
-            foreach ($saleItem->getAllocations() as $allocation) {
-                $batch = $allocation->getBatch();
-                $batchesById[$batch->getId()] = $batch;
-                $requestedQtyByBatch[$batch->getId()] = bcadd(
-                    $requestedQtyByBatch[$batch->getId()] ?? '0',
-                    $allocation->getQuantity(),
-                    3
-                );
-            }
+        if (count($sale->getItems()) === 0) {
+            throw new SaleStatusTransitionException('Cannot post a sale without items.');
         }
 
-        foreach ($requestedQtyByBatch as $batchId => $requestedQty) {
-            $batch = $batchesById[$batchId];
-            $remainingQty = $this->batchRepository->getRemainingQty($batch);
+        return $this->entityManager->wrapInTransaction(function () use ($sale, $previousStatus) {
+            $this->saleRepository->lockSales([$sale]);
+            $this->assertNotChangedConcurrently($sale, $previousStatus);
 
-            if (bccomp($requestedQty, $remainingQty, 3) > 0) {
-                throw new InsufficientBatchQuantityException(sprintf(
-                    'Cannot sell %s of batch "%s": only %s left.',
-                    $requestedQty,
-                    $batch->getNumber(),
-                    $remainingQty
-                ));
+            foreach ($sale->getItems() as $saleItem) {
+                $this->saleItemAllocationService->allocate($saleItem);
             }
+
+            $this->recordOutMovements($sale);
+            $this->recordProfitEntries($sale);
+            $this->recordDebtEntries($sale);
+
+            return $sale;
+        });
+    }
+
+    private function cancel(Sale $sale, ?DocStatus $previousStatus): Sale
+    {
+        return $this->entityManager->wrapInTransaction(function () use ($sale, $previousStatus) {
+            $this->saleRepository->lockSales([$sale]);
+            $this->assertNotChangedConcurrently($sale, $previousStatus);
+            $this->assertNoActivePayments($sale);
+
+            $this->reverseMovements($sale);
+            $this->reverseProfitEntries($sale);
+            $this->reverseDebtEntries($sale);
+
+            return $sale;
+        });
+    }
+
+    private function assertNotChangedConcurrently(Sale $sale, ?DocStatus $expectedStatus): void
+    {
+        if ($expectedStatus !== null && $this->saleRepository->getCurrentStatus($sale->getId()) !== $expectedStatus->value) {
+            throw new SaleStatusTransitionException(
+                'This sale was already changed by another request. Reload it and try again.'
+            );
+        }
+    }
+
+    private function assertNoActivePayments(Sale $sale): void
+    {
+        if ($this->paymentAllocationRepository->hasPostedAllocationForSale($sale)) {
+            throw new SaleStatusTransitionException(
+                'Cannot cancel a sale that has posted payments allocated to it. Cancel the related payment(s) first.'
+            );
         }
     }
 
@@ -166,6 +187,64 @@ class SaleChangeStatusService
                 );
                 $this->entityManager->persist($profitEntry);
             }
+        }
+    }
+
+    private function recordDebtEntries(Sale $sale): void
+    {
+        if (bccomp($sale->getTotalUsd(), '0', 2) > 0) {
+            $debt = $this->debtFactory->create(
+                DocumentType::SALE,
+                $sale->getCustomer(),
+                $sale,
+                null,
+                $sale->getTotalUsd(),
+                Currency::USD,
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($debt);
+        }
+
+        if (bccomp($sale->getTotalUzs(), '0', 2) > 0) {
+            $debt = $this->debtFactory->create(
+                DocumentType::SALE,
+                $sale->getCustomer(),
+                $sale,
+                null,
+                $sale->getTotalUzs(),
+                Currency::UZS,
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($debt);
+        }
+    }
+
+    private function reverseDebtEntries(Sale $sale): void
+    {
+        if (bccomp($sale->getTotalUsd(), '0', 2) > 0) {
+            $debt = $this->debtFactory->create(
+                DocumentType::SALE,
+                $sale->getCustomer(),
+                $sale,
+                null,
+                bcmul($sale->getTotalUsd(), '-1', 2),
+                Currency::USD,
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($debt);
+        }
+
+        if (bccomp($sale->getTotalUzs(), '0', 2) > 0) {
+            $debt = $this->debtFactory->create(
+                DocumentType::SALE,
+                $sale->getCustomer(),
+                $sale,
+                null,
+                bcmul($sale->getTotalUzs(), '-1', 2),
+                Currency::UZS,
+                $this->currentUser->getUser()
+            );
+            $this->entityManager->persist($debt);
         }
     }
 

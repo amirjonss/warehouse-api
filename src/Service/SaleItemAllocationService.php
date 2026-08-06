@@ -49,6 +49,8 @@ class SaleItemAllocationService
             ['receivedAt' => 'ASC', 'id' => 'ASC']
         );
 
+        $this->batchRepository->lockBatches($batches);
+
         foreach ($batches as $batch) {
             if (bccomp($remainingToAllocate, '0', 3) <= 0) {
                 break;

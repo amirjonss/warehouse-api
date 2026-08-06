@@ -3,14 +3,33 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
-use App\Component\Product\Enums\Currency;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Component\Client\Dtos\ClientDebtDto;
+use App\Controller\ClientDebtAction;
 use App\Repository\ClientRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
 #[ORM\Table(name: 'clients')]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new GetCollection(
+            uriTemplate: '/clients/debt',
+            controller: ClientDebtAction::class,
+            output: ClientDebtDto::class,
+            read: false
+        ),
+        new Get(),
+        new Post(),
+        new Patch(),
+        new Delete(),
+    ],
+)]
 class Client
 {
     #[ORM\Id]

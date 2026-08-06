@@ -3,21 +3,41 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\PaymentMethod;
 use App\Component\Core\Enums\RateKind;
 use App\Component\Product\Enums\Currency;
+use App\Controller\PaymentChangeStatusAction;
+use App\Controller\PaymentCreateAction;
 use App\Repository\PaymentRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: PaymentRepository::class)]
 #[ORM\Table(name: 'payments')]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(),
+        new Get(),
+        new Post(
+            controller: PaymentCreateAction::class,
+        ),
+        new Post(
+            uriTemplate: '/payments/{id}/change_status',
+            controller: PaymentChangeStatusAction::class,
+            denormalizationContext: ['groups' => ['payments-status:write']]
+        )
+    ],
+    denormalizationContext: ['groups' => ['payments:write']]
+)]
 #[Assert\Expression(
     '(this.getRate() === null) === (this.getRateKind() === null)',
     message: 'rate and rateKind must be filled together',
@@ -33,6 +53,7 @@ class Payment
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['payments:write'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
@@ -40,21 +61,27 @@ class Payment
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['payments:write'])]
     private ?Client $client = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['payments:write'])]
     private ?string $amount = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[Groups(['payments:write'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(nullable: true, enumType: RateKind::class)]
+    #[Groups(['payments:write'])]
     private ?RateKind $rateKind = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
+    #[Groups(['payments:write'])]
     private ?string $rate = null;
 
     #[ORM\Column(enumType: PaymentMethod::class)]
+    #[Groups(['payments:write'])]
     private ?PaymentMethod $method = null;
 
     #[ORM\ManyToOne]
@@ -65,9 +92,11 @@ class Payment
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
+    #[Groups(['payments-status:write'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Groups(['payments:write'])]
     private ?string $note = null;
 
     /**

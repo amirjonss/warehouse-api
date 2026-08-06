@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20260804155929 extends AbstractMigration
+final class Version20260806062558 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -45,10 +45,25 @@ final class Version20260804155929 extends AbstractMigration
             CREATE TABLE clients (id SERIAL NOT NULL, name VARCHAR(255) NOT NULL, contact VARCHAR(255) DEFAULT NULL, phone VARCHAR(255) DEFAULT NULL, address TEXT DEFAULT NULL, is_active BOOLEAN NOT NULL, PRIMARY KEY(id))
         SQL);
         $this->addSql(<<<'SQL'
+            CREATE TABLE debts (id SERIAL NOT NULL, client_id INT NOT NULL, sale_id INT NOT NULL, payment_id INT DEFAULT NULL, created_by_id INT NOT NULL, occurred_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, amount NUMERIC(18, 2) NOT NULL, currency VARCHAR(255) NOT NULL, doc_type VARCHAR(255) NOT NULL, PRIMARY KEY(id))
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX IDX_6F64A29BB03A8386 ON debts (created_by_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX idx_debts_client ON debts (client_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX idx_debts_sale ON debts (sale_id)
+        SQL);
+        $this->addSql(<<<'SQL'
+            CREATE INDEX idx_debts_payment ON debts (payment_id)
+        SQL);
+        $this->addSql(<<<'SQL'
             CREATE TABLE exchange_rates (rate_date DATE NOT NULL, rate_buy NUMERIC(12, 4) NOT NULL, rate_sell NUMERIC(12, 4) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(rate_date))
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE payment_allocations (id SERIAL NOT NULL, payment_id INT NOT NULL, sale_id INT DEFAULT NULL, currency VARCHAR(255) NOT NULL, amount_closed NUMERIC(18, 2) NOT NULL, amount_spent NUMERIC(18, 2) NOT NULL, doc_rate NUMERIC(12, 4) NOT NULL, pay_rate NUMERIC(12, 4) DEFAULT NULL, is_rounding BOOLEAN NOT NULL, PRIMARY KEY(id))
+            CREATE TABLE payment_allocations (id SERIAL NOT NULL, payment_id INT NOT NULL, sale_id INT DEFAULT NULL, currency VARCHAR(255) NOT NULL, amount_closed NUMERIC(18, 2) NOT NULL, amount_spent NUMERIC(18, 2) NOT NULL, pay_rate NUMERIC(12, 4) DEFAULT NULL, is_rounding BOOLEAN NOT NULL, PRIMARY KEY(id))
         SQL);
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_366592244C3A3BB ON payment_allocations (payment_id)
@@ -213,6 +228,18 @@ final class Version20260804155929 extends AbstractMigration
             ALTER TABLE batches ADD CONSTRAINT FK_F06E65532B5CA896 FOREIGN KEY (receipt_id) REFERENCES receipts (id) NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
+            ALTER TABLE debts ADD CONSTRAINT FK_6F64A29B19EB6921 FOREIGN KEY (client_id) REFERENCES clients (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts ADD CONSTRAINT FK_6F64A29B4A7E4868 FOREIGN KEY (sale_id) REFERENCES sales (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts ADD CONSTRAINT FK_6F64A29B4C3A3BB FOREIGN KEY (payment_id) REFERENCES payments (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts ADD CONSTRAINT FK_6F64A29BB03A8386 FOREIGN KEY (created_by_id) REFERENCES users (id) NOT DEFERRABLE INITIALLY IMMEDIATE
+        SQL);
+        $this->addSql(<<<'SQL'
             ALTER TABLE payment_allocations ADD CONSTRAINT FK_366592244C3A3BB FOREIGN KEY (payment_id) REFERENCES payments (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
         $this->addSql(<<<'SQL'
@@ -317,6 +344,18 @@ final class Version20260804155929 extends AbstractMigration
             ALTER TABLE batches DROP CONSTRAINT FK_F06E65532B5CA896
         SQL);
         $this->addSql(<<<'SQL'
+            ALTER TABLE debts DROP CONSTRAINT FK_6F64A29B19EB6921
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts DROP CONSTRAINT FK_6F64A29B4A7E4868
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts DROP CONSTRAINT FK_6F64A29B4C3A3BB
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE debts DROP CONSTRAINT FK_6F64A29BB03A8386
+        SQL);
+        $this->addSql(<<<'SQL'
             ALTER TABLE payment_allocations DROP CONSTRAINT FK_366592244C3A3BB
         SQL);
         $this->addSql(<<<'SQL'
@@ -411,6 +450,9 @@ final class Version20260804155929 extends AbstractMigration
         SQL);
         $this->addSql(<<<'SQL'
             DROP TABLE clients
+        SQL);
+        $this->addSql(<<<'SQL'
+            DROP TABLE debts
         SQL);
         $this->addSql(<<<'SQL'
             DROP TABLE exchange_rates
