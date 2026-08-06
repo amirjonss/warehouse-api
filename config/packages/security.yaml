@@ -49,12 +49,6 @@ security:
             methods:
                 - post
 
-        user_create:
-            pattern: ^/api/users/?$
-            security: false
-            methods:
-                - post
-
         doc:
             pattern: ^/api/?$
             security: false

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e5afa606-cbeb-4439-854c-940a03184b8a",
     "name": "Warehouse API",
-    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Register user\" then \"Login\" first — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...). Receipt/Sale/Writeoff no longer accept number/status/createdBy/receivedBy/totalUsd/totalUzs on create — the server generates the number and always starts in draft. Status only changes via the dedicated POST .../change_status endpoint (not PATCH). SaleItem no longer accepts batch/total/costPrice/costCurrency/costRate — the server picks batches via FIFO automatically and computes cost/total; price is optional and defaults to Product.priceUsd/priceUzs if omitted. StockMovement, SaleItemAllocation and Profit are read-only ledgers written only by the server when a document is posted/cancelled.\n\nRBAC: two roles exist, ROLE_ADMIN (everything) and ROLE_SALES (Sales/Payments/Clients/Debt/read-only catalog — no Suppliers/Receipts/Writeoffs/StockMovements/Profits, and purchasePrice/costPrice/costCurrency/costRate are stripped from responses). ROLE_ADMIN implicitly includes everything ROLE_SALES can do (role_hierarchy). See each folder's description for its exact requirement. There is no API endpoint to assign roles — a brand-new registered user has no role at all (403 everywhere) until an admin runs, on the server: `php bin/console ask:roles:add-to-user` (prompts for user id, then role — e.g. ROLE_ADMIN or ROLE_SALES). This collection's default user ({{userEmail}}) already has ROLE_ADMIN; {{salesUserEmail}} is a second pre-provisioned account with ROLE_SALES for testing the restricted role — login separately with it to get a second token, since the collection only stores one {{accessToken}} at a time.",
+    "description": "Auto-generated from the Doctrine/API Platform entities in src/Entity (see СХЕМА-БД.md). Run \"Login\" first (as an existing ROLE_ADMIN user — see RBAC note below for how the very first one gets created) — every other request inherits the collection's Bearer token from {{accessToken}}. Requests are ordered so that running each folder's \"Create\" request top to bottom fills in the id variables the later folders depend on (categoryId -> productId -> clientId/supplierId -> receiptId -> batchId -> ...). Receipt/Sale/Writeoff no longer accept number/status/createdBy/receivedBy/totalUsd/totalUzs on create — the server generates the number and always starts in draft. Status only changes via the dedicated POST .../change_status endpoint (not PATCH). SaleItem no longer accepts batch/total/costPrice/costCurrency/costRate — the server picks batches via FIFO automatically and computes cost/total; price is optional and defaults to Product.priceUsd/priceUzs if omitted. StockMovement, SaleItemAllocation and Profit are read-only ledgers written only by the server when a document is posted/cancelled.\n\nRBAC: two roles exist, ROLE_ADMIN (everything) and ROLE_SALES (Sales/Payments/Clients/Debt/read-only catalog — no Suppliers/Receipts/Writeoffs/StockMovements/Profits, and purchasePrice/costPrice/costCurrency/costRate are stripped from responses). ROLE_ADMIN implicitly includes everything ROLE_SALES can do (role_hierarchy). See each folder's description for its exact requirement. Users are created only by an existing ROLE_ADMIN via \"Create user (admin)\" (no self-registration, no password in the body — the server generates one and returns it once). To assign/change a role on an existing user later: `php bin/console ask:roles:add-to-user`. The very first user on a brand-new database (chicken-and-egg — no admin exists yet to call the API) must be created on the server with `php bin/console ask:users:create`, not through this collection. This collection's default user ({{userEmail}}) is assumed to already have ROLE_ADMIN; {{salesUserEmail}} is a second pre-provisioned account with ROLE_SALES for testing the restricted role — login separately with it to get a second token, since the collection only stores one {{accessToken}} at a time.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -150,10 +150,10 @@
   "item": [
     {
       "name": "Auth & Users",
-      "description": "Register/Login/Refresh/Is email unique are open to anyone. About me works for any authenticated user. List users/Get user by id/Change password require ROLE_ADMIN unless it's your own account (object == user || ROLE_ADMIN).",
+      "description": "Login/Refresh/Is email unique are open to anyone. About me works for any authenticated user. Create user, List users, Get user by id require ROLE_ADMIN (Get/Change password also allow object == user, i.e. your own account). There is no self-registration — a brand-new database has no users at all, so the very first admin must be created out-of-band with `php bin/console ask:users:create` on the server (not via this collection). This collection's default {{userEmail}} is assumed to already exist with ROLE_ADMIN.",
       "item": [
         {
-          "name": "Register user",
+          "name": "Create user (admin)",
           "request": {
             "method": "POST",
             "header": [
@@ -175,10 +175,10 @@
                 "users"
               ]
             },
-            "description": "Creates the account used by every other request in this collection.",
+            "description": "Requires: ROLE_ADMIN. No password in the body — the server generates one and returns it in the response (email + plaintext password + roles), this is the only time it's ever visible. The new user should change it afterwards via \"Change password\". roles must be a non-empty array of ROLE_ADMIN/ROLE_SALES (422 InvalidRoleException otherwise). Fails with 400 if the email is already taken.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}",
+              "raw": "{\n    \"email\": \"{{salesUserEmail}}\",\n    \"roles\": [\"ROLE_SALES\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -196,6 +196,7 @@
                   "if (pm.response.code === 200 || pm.response.code === 201) {",
                   "    const json = pm.response.json();",
                   "    if (json.id !== undefined) { pm.collectionVariables.set('userId', json.id); }",
+                  "    if (json.password !== undefined) { console.log('Generated password for ' + json.email + ':', json.password); }",
                   "}",
                   "pm.test('Status code is successful', function () {",
                   "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",

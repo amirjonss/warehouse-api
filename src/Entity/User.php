@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use App\Component\User\Dtos\RefreshTokenRequestDto;
 use App\Component\User\Dtos\TokensDto;
+use App\Component\User\Dtos\UserCreatedDto;
 use App\Controller\DeleteAction;
 use App\Controller\UserAboutMeAction;
 use App\Controller\UserAuthAction;
@@ -49,6 +50,9 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Post(
             controller: UserCreateAction::class,
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['user:create:write']],
+            output: UserCreatedDto::class,
         ),
         new Patch(
             denormalizationContext: ['groups' => ['user:put:write']],
@@ -139,7 +143,7 @@ class User implements
 
     #[ORM\Column(type: 'string', length: 255)]
     #[Assert\Email]
-    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:isUniqueEmail:write'])]
+    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:isUniqueEmail:write', 'user:create:write'])]
     private ?string $email = null;
 
     #[ORM\Column(type: 'string', length: 255)]
@@ -148,7 +152,7 @@ class User implements
     private ?string $password = null;
 
     #[ORM\Column(type: 'array')]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'user:create:write'])]
     private array $roles = [];
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
