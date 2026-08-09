@@ -10,6 +10,7 @@ use App\Component\Product\Enums\Currency;
 use App\Repository\SaleItemAllocationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SaleItemAllocationRepository::class)]
@@ -30,6 +31,7 @@ class SaleItemAllocation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['sale-item:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'allocations')]
@@ -38,6 +40,7 @@ class SaleItemAllocation
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['sale-item:read'])]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]

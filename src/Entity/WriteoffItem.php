@@ -37,32 +37,33 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: "is_granted('ROLE_ADMIN')",
         ),
     ],
-    denormalizationContext: ['groups' => ['writeoff:write']],
+    denormalizationContext: ['groups' => ['writeoff-item:write']],
 )]
 class WriteoffItem
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['writeoffs:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    #[Groups(['writeoff:write'])]
+    #[Groups(['writeoff-item:write'])]
     private ?Writeoff $writeoff = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['writeoff:write'])]
+    #[Groups(['writeoff-item:write', 'writeoffs:read'])]
     private ?Product $product = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['writeoff:write'])]
+    #[Groups(['writeoff-item:write', 'writeoffs:read'])]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
-    #[Groups(['writeoff:write'])]
+    #[Groups(['writeoff-item:write', 'writeoffs:read'])]
     #[Assert\Positive]
     private ?string $quantity = null;
 

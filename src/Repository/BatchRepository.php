@@ -38,10 +38,17 @@ class BatchRepository extends ServiceEntityRepository
 
     public function isUsed(Batch $batch): bool
     {
-        return bccomp($this->getRemainingQty($batch), $batch->getInitialQty(), 3) !== 0;
+        return bccomp($this->computeLiveRemainingQty($batch), $batch->getInitialQty(), 3) !== 0;
     }
 
-    public function getRemainingQty(Batch $batch): string
+    /**
+     * Fresh SUM straight from the stock_movements ledger — the authoritative value for
+     * concurrency-safe checks. Batch::getRemainingQty() (denormalized column, kept in
+     * sync by StockMovementFactory) is fine for display, but callers gating a write
+     * against "how much is actually left" must call this after lockBatches() so they
+     * see any concurrently-committed change, not a value cached on this PHP object.
+     */
+    public function computeLiveRemainingQty(Batch $batch): string
     {
         $result = $this->getEntityManager()->createQueryBuilder()
             ->select('COALESCE(SUM(sm.quantity), 0)')
@@ -75,16 +82,4 @@ class BatchRepository extends ServiceEntityRepository
         }
     }
 
-    public function getRemainingQtyForProduct(Product $product): string
-    {
-        $result = $this->getEntityManager()->createQueryBuilder()
-            ->select('COALESCE(SUM(sm.quantity), 0)')
-            ->from(StockMovement::class, 'sm')
-            ->andWhere('sm.product = :product')
-            ->setParameter('product', $product)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        return (string) $result;
-    }
 }

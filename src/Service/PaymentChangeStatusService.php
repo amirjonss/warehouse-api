@@ -198,6 +198,8 @@ class PaymentChangeStatusService
 
     private function getPreviousStatus(Payment $payment): ?DocStatus
     {
-        return $this->entityManager->getUnitOfWork()->getOriginalEntityData($payment)['status'] ?? null;
+        $status = $this->entityManager->getUnitOfWork()->getOriginalEntityData($payment)['status'] ?? null;
+
+        return $status instanceof DocStatus ? $status : ($status !== null ? DocStatus::from($status) : null);
     }
 }

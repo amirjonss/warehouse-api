@@ -766,7 +766,7 @@
     },
     {
       "name": "Products",
-      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read (including /products/stock). Create/Update require ROLE_ADMIN. purchasePrice is hidden from the JSON response entirely for ROLE_SALES (present for ROLE_ADMIN) via ApiProperty security, not just endpoint-level access control.",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) to read. Create/Update require ROLE_ADMIN. remainingQty is a real denormalized column (not computed on read) kept in sync by StockMovementFactory on every stock movement — no custom provider, standard Doctrine pagination/filtering (SearchFilter on name/sku/category.id, RangeFilter on minStock) all work natively. POST /products/summary (not GET — a fixed-uriTemplate GET without {id} broke API Platform IRI generation for the whole Product resource, same reason users/about_me is POST) returns { positions, low } aggregate counts for the stock-overview tiles — one SQL query server-side instead of the frontend fetching and summing the whole catalog.",
       "item": [
         {
           "name": "List Products",
@@ -792,9 +792,9 @@
           "response": []
         },
         {
-          "name": "List Product Stock",
+          "name": "Get Product Stock Summary",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
                 "key": "Accept",
@@ -802,16 +802,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/products/stock",
+              "raw": "{{baseUrl}}/products/summary",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "products",
-                "stock"
+                "summary"
               ]
             },
-            "description": "Read-only report: every product with its current remaining quantity, aggregated from the stock_movements ledger (id, sku, name, unit, remainingQty)."
+            "description": "Aggregate counts for the stock dashboard tiles: positions (products with remaining > 0) and low (remaining <= minStock, including out-of-stock). Computed with one SQL aggregate query server-side instead of summing the full product list on the client. Requires ROLE_SALES."
           },
           "response": []
         },
@@ -841,7 +841,7 @@
             "description": "Creates a new Products record and stores its id in {{productId}}. priceUsd/priceUzs are optional default sale prices (independently set, not derived from an exchange rate) — SaleItem.price falls back to these when omitted.",
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"sku\": \"MARG-001\",\n    \"name\": \"Маргарин 1кг\",\n    \"category\": \"/api/categories/{{categoryId}}\",\n    \"currency\": \"USD\",\n    \"unit\": \"kg\",\n    \"packQty\": \"1.000\",\n    \"packUnit\": \"kg\",\n    \"minStock\": \"50.000\",\n    \"purchasePrice\": \"38.00\",\n    \"priceUsd\": \"45.00\",\n    \"priceUzs\": \"580000.00\",\n    \"isActive\": true\n}",
+              "raw": "{\n    \"sku\": \"MARG-001\",\n    \"name\": \"Маргарин 1кг\",\n    \"category\": \"/api/categories/{{categoryId}}\",\n    \"currency\": \"USD\",\n    \"unit\": \"kg\",\n    \"minStock\": \"50.000\",\n    \"priceUsd\": \"45.00\",\n    \"priceUzs\": \"580000.00\",\n    \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1462,7 +1462,7 @@
     },
     {
       "name": "Batches",
-      "description": "Requires: ROLE_ADMIN. Read-only (GetCollection/Get only — no Post/Patch/Delete anymore, batches are only ever created server-side when a Receipt is posted). ROLE_SALES has no access.",
+      "description": "Requires: ROLE_ADMIN. Read-only (GetCollection/Get only — no Post/Patch/Delete anymore, batches are only ever created server-side when a Receipt is posted). ROLE_SALES has no access. remainingQty is a denormalized column kept in sync by StockMovementFactory. product/supplier embed as nested objects (id + name) via the batch:read serialization group instead of plain IRIs, so the frontend gets product/supplier names without a separate fetch.",
       "item": [
         {
           "name": "List Batches",
@@ -2700,7 +2700,7 @@
     },
     {
       "name": "Stock Movements",
-      "description": "Requires: ROLE_ADMIN. ROLE_SALES has no access (use /products/stock instead for remaining quantity).",
+      "description": "Requires: ROLE_ADMIN. ROLE_SALES has no access (use GET /products instead for remaining quantity — remainingQty is on every Product now).",
       "item": [
         {
           "name": "List Stock Movements",

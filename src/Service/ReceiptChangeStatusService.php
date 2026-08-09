@@ -143,6 +143,11 @@ class ReceiptChangeStatusService
 
     private function getPreviousStatus(Receipt $receipt): ?DocStatus
     {
-        return $this->entityManager->getUnitOfWork()->getOriginalEntityData($receipt)['status'] ?? null;
+        $status = $this->entityManager->getUnitOfWork()->getOriginalEntityData($receipt)['status'] ?? null;
+
+        // For an entity that was persisted and flushed earlier in the same request/process
+        // (never reloaded via a fresh SELECT), Doctrine's original-data snapshot for an
+        // enum-typed column holds the raw DB scalar rather than the enum instance.
+        return $status instanceof DocStatus ? $status : ($status !== null ? DocStatus::from($status) : null);
     }
 }

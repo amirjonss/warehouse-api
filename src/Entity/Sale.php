@@ -2,13 +2,19 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Core\Enums\DocStatus;
 use App\Controller\SaleChangeStatusAction;
 use App\Controller\SaleCreateAction;
+use App\Controller\SaleDeleteAction;
 use App\Repository\SaleRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -21,7 +27,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Table(name: 'sales')]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new GetCollection(
+            security: "is_granted('ROLE_SALES')",
+            parameters: [
+                'docDate' => new QueryParameter(
+                    filter: new DateFilter(),
+                    property: 'docDate'
+                ),
+            ]
+        ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(
             controller: SaleCreateAction::class,
@@ -32,57 +46,72 @@ use Symfony\Component\Serializer\Attribute\Groups;
             controller: SaleChangeStatusAction::class,
             denormalizationContext: ['groups' => ['sales-status:write']],
             security: "is_granted('ROLE_SALES')",
+        ),
+        new Delete(
+            controller: SaleDeleteAction::class,
+            security: "is_granted('ROLE_SALES')",
         )
     ],
-    denormalizationContext: ['groups' => ['sales:write']]
+    normalizationContext: ['groups' => ['sales:read']],
+    denormalizationContext: ['groups' => ['sales:write']],
+    paginationItemsPerPage: 20,
 )]
+#[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 class Sale
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['sales:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, unique: true)]
+    #[Groups(['sales:read'])]
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
-    #[Groups(['sales:write'])]
+    #[Groups(['sales:write', 'sales:read'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Groups(['sales:read'])]
     private ?DateTimeInterface $postedAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['sales:write'])]
+    #[Groups(['sales:write' ,'sales:read'])]
     private ?Client $customer = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[Groups(['sales:read'])]
     private ?string $totalUsd = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['sales:read'])]
     private ?string $totalUzs = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['sales:read'])]
     private ?User $soldBy = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['sales:read'])]
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
-    #[Groups(['sales-status:write'])]
+    #[Groups(['sales-status:write', 'sales:read'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
-    #[Groups(['sales:write'])]
+    #[Groups(['sales:write', 'sales:read'])]
     private ?string $note = null;
 
     /**
      * @var Collection<int, SaleItem>
      */
     #[ORM\OneToMany(targetEntity: SaleItem::class, mappedBy: 'sale', orphanRemoval: true)]
+    #[Groups(['sales:read'])]
     private Collection $items;
 
     public function __construct()

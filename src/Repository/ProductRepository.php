@@ -38,6 +38,30 @@ class ProductRepository extends ServiceEntityRepository
         }
     }
 
+    /**
+     * Counts products in stock (remaining > 0) and low-on-stock (remaining <= min_stock,
+     * including out-of-stock) directly off the denormalized remaining_qty column, so the
+     * dashboard/stock summary tiles don't need to fetch and sum every product on the frontend.
+     *
+     * @return array{positions: int, low: int}
+     */
+    public function getStockSummary(): array
+    {
+        $sql = <<<'SQL'
+            SELECT
+                COUNT(*) FILTER (WHERE remaining_qty > 0) AS positions,
+                COUNT(*) FILTER (WHERE remaining_qty <= min_stock) AS low
+            FROM product
+            SQL;
+
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative($sql);
+
+        return [
+            'positions' => (int) $row['positions'],
+            'low' => (int) $row['low'],
+        ];
+    }
+
 //    /**
 //     * @return Product[] Returns an array of Product objects
 //     */

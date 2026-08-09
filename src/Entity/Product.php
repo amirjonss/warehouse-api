@@ -2,47 +2,59 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Component\Product\Dtos\ProductStockDto;
+use App\Component\Product\Dtos\ProductStockSummaryDto;
 use App\Component\Product\Enums\Currency;
 use App\Component\Product\Enums\UnitCode;
-use App\Controller\ProductStockAction;
+use App\Controller\ProductStockSummaryAction;
+use App\Filter\LowStockFilter;
 use App\Repository\ProductRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 #[ApiResource(
     operations: [
         new GetCollection(security: "is_granted('ROLE_SALES')"),
-        new GetCollection(
-            uriTemplate: '/products/stock',
-            controller: ProductStockAction::class,
+        new Post(
+            uriTemplate: '/products/summary',
+            controller: ProductStockSummaryAction::class,
             security: "is_granted('ROLE_SALES')",
-            output: ProductStockDto::class,
-            read: false
+            input: false,
+            output: ProductStockSummaryDto::class,
+            read: false,
+            name: 'stockSummary',
         ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_ADMIN')"),
         new Patch(security: "is_granted('ROLE_ADMIN')"),
-    ]
+    ],
+    paginationItemsPerPage: 20
 )]
+#[ApiFilter(RangeFilter::class, properties: ['minStock'])]
+#[ApiFilter(SearchFilter::class, properties: ['name' => 'partial', 'sku' => 'exact', 'category.id' => 'exact'])]
+#[ApiFilter(LowStockFilter::class)]
 class Product
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['writeoffs:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $sku = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'writeoffs:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(inversedBy: 'products')]
@@ -56,17 +68,7 @@ class Product
     private ?UnitCode $unit = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
-    private ?string $pack_qty = null;
-
-    #[ORM\Column(enumType: UnitCode::class)]
-    private ?UnitCode $packUnit = null;
-
-    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
     private ?string $minStock = null;
-
-    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
-    private ?string $purchasePrice = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2, nullable: true)]
     private ?string $priceUsd = null;
@@ -76,6 +78,9 @@ class Product
 
     #[ORM\Column]
     private ?bool $isActive = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    private ?string $remainingQty = '0.000';
 
     public function getId(): ?int
     {
@@ -142,30 +147,6 @@ class Product
         return $this;
     }
 
-    public function getPackQty(): ?string
-    {
-        return $this->pack_qty;
-    }
-
-    public function setPackQty(string $pack_qty): static
-    {
-        $this->pack_qty = $pack_qty;
-
-        return $this;
-    }
-
-    public function getPackUnit(): ?UnitCode
-    {
-        return $this->packUnit;
-    }
-
-    public function setPackUnit(UnitCode $packUnit): static
-    {
-        $this->packUnit = $packUnit;
-
-        return $this;
-    }
-
     public function getMinStock(): ?string
     {
         return $this->minStock;
@@ -174,18 +155,6 @@ class Product
     public function setMinStock(string $minStock): static
     {
         $this->minStock = $minStock;
-
-        return $this;
-    }
-
-    public function getPurchasePrice(): ?string
-    {
-        return $this->purchasePrice;
-    }
-
-    public function setPurchasePrice(string $purchasePrice): static
-    {
-        $this->purchasePrice = $purchasePrice;
 
         return $this;
     }
@@ -222,6 +191,18 @@ class Product
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function getRemainingQty(): ?string
+    {
+        return $this->remainingQty;
+    }
+
+    public function setRemainingQty(string $remainingQty): static
+    {
+        $this->remainingQty = $remainingQty;
 
         return $this;
     }

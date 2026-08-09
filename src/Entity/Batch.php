@@ -2,6 +2,9 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -10,6 +13,7 @@ use App\Repository\BatchRepository;
 use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BatchRepository::class)]
@@ -20,47 +24,65 @@ use Symfony\Component\Validator\Constraints as Assert;
         new GetCollection(security: "is_granted('ROLE_ADMIN')"),
         new Get(security: "is_granted('ROLE_ADMIN')"),
     ],
+    normalizationContext: ['groups' => ['batch:read']],
+    paginationItemsPerPage: 20,
 )]
 #[Assert\Expression(
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRateSell() === "1"',
     message: 'rateSell must be 1 for a UZS batch',
 )]
+#[ApiFilter(SearchFilter::class, properties: ['product.name' => 'partial'])]
 class Batch
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read'])]
     private ?string $number = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups('batch:read')]
     private ?Product $product = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups('batch:read')]
     private ?DateTimeInterface $receivedAt = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    #[Groups('batch:read')]
     private ?string $initialQty = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[Groups('batch:read')]
     private ?string $purchasePrice = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[Groups('batch:read')]
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[Groups('batch:read')]
     private ?string $rateSell = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups('batch:read')]
     private ?Supplier $supplier = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups('batch:read')]
     private ?Receipt $receipt = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    #[ApiProperty(writable: false)]
+    #[Groups('batch:read')]
+    private ?string $remainingQty = '0.000';
 
     public function getId(): ?int
     {
@@ -171,6 +193,18 @@ class Batch
     public function setReceipt(?Receipt $receipt): static
     {
         $this->receipt = $receipt;
+
+        return $this;
+    }
+
+    public function getRemainingQty(): ?string
+    {
+        return $this->remainingQty;
+    }
+
+    public function setRemainingQty(string $remainingQty): static
+    {
+        $this->remainingQty = $remainingQty;
 
         return $this;
     }

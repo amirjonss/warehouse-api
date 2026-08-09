@@ -34,6 +34,9 @@ class StockMovementFactory
             ->setDocNumber($docNumber)
             ->setCreatedBy($createdBy);
 
+        $product->setRemainingQty(bcadd($product->getRemainingQty() ?? '0', $quantity, 3));
+        $batch->setRemainingQty(bcadd($batch->getRemainingQty() ?? '0', $quantity, 3));
+
         return $stockMovement;
     }
 }

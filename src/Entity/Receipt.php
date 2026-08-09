@@ -2,10 +2,15 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Core\Enums\DocStatus;
 use App\Controller\ReceiptCreateAction;
 use App\Controller\ReceiptChangeStatusAction;
@@ -21,7 +26,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Table(name: 'receipts')]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new GetCollection(
+            security: "is_granted('ROLE_ADMIN')",
+            parameters: [
+                'docDate' => new QueryParameter(
+                    filter: new DateFilter(),
+                    property: 'docDate'
+                ),
+            ]
+        ),
         new Get(security: "is_granted('ROLE_ADMIN')"),
         new Post(
             controller: ReceiptCreateAction::class,
@@ -34,55 +47,67 @@ use Symfony\Component\Serializer\Attribute\Groups;
             security: "is_granted('ROLE_ADMIN')",
         )
     ],
-    denormalizationContext: ['groups' => ['receipts:write']]
+    normalizationContext: ['groups' => ['receipts:read']],
+    denormalizationContext: ['groups' => ['receipts:write']],
+    paginationItemsPerPage: 20,
 )]
+#[ApiFilter(SearchFilter::class, properties: ['number' => 'exact', 'supplier.name' => 'partial'])]
+#[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 class Receipt
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['receipts:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, unique: true)]
+    #[Groups(['receipts:read'])]
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
-    #[Groups(['receipts:write'])]
+    #[Groups(['receipts:write', 'receipts:read'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Groups(['receipts:read'])]
     private ?DateTimeInterface $postedAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['receipts:write'])]
+    #[Groups(['receipts:write', 'receipts:read'])]
     private ?Supplier $supplier = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
+    #[Groups(['receipts:read'])]
     private ?string $totalUsd = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['receipts:read'])]
     private ?string $totalUzs = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['receipts:read'])]
     private ?User $receivedBy = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['receipts:read'])]
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
-    #[Groups(['receipts-status:write'])]
+    #[Groups(['receipts-status:write', 'receipts:read'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
-    #[Groups(['receipts:write'])]
+    #[Groups(['receipts:write', 'receipts:read'])]
     private ?string $note = null;
 
     /**
      * @var Collection<int, ReceiptItem>
      */
     #[ORM\OneToMany(targetEntity: ReceiptItem::class, mappedBy: 'receipt', orphanRemoval: true)]
+    #[Groups(['receipts:read'])]
     private Collection $items;
 
     public function __construct()

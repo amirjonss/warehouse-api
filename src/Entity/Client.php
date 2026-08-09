@@ -12,6 +12,7 @@ use App\Component\Client\Dtos\ClientDebtDto;
 use App\Controller\ClientDebtAction;
 use App\Repository\ClientRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
 #[ORM\Table(name: 'clients')]
@@ -36,9 +37,11 @@ class Client
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['sales:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['sales:read'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, nullable: true)]

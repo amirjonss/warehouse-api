@@ -42,6 +42,11 @@ class SaleItemAllocationService
             $saleItem->removeAllocation($existingAllocation);
         }
 
+        // Doctrine executes inserts before deletes within a single flush, so without this
+        // the re-allocation below could try to insert the same (sale_item_id, batch_id) pair
+        // the old allocation still occupies and hit the unique constraint.
+        $this->entityManager->flush();
+
         $remainingToAllocate = $saleItem->getQuantity();
 
         $batches = $this->batchRepository->findBy(
@@ -56,7 +61,7 @@ class SaleItemAllocationService
                 break;
             }
 
-            $availableQty = $this->batchRepository->getRemainingQty($batch);
+            $availableQty = $this->batchRepository->computeLiveRemainingQty($batch);
             if (bccomp($availableQty, '0', 3) <= 0) {
                 continue;
             }

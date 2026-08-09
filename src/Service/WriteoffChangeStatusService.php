@@ -118,7 +118,7 @@ class WriteoffChangeStatusService
 
         foreach ($requestedQtyByBatch as $batchId => $requestedQty) {
             $batch = $batchesById[$batchId];
-            $remainingQty = $this->batchRepository->getRemainingQty($batch);
+            $remainingQty = $this->batchRepository->computeLiveRemainingQty($batch);
 
             if (bccomp($requestedQty, $remainingQty, 3) > 0) {
                 throw new InsufficientBatchQuantityException(sprintf(
@@ -167,6 +167,8 @@ class WriteoffChangeStatusService
 
     private function getPreviousStatus(Writeoff $writeoff): ?DocStatus
     {
-        return $this->entityManager->getUnitOfWork()->getOriginalEntityData($writeoff)['status'] ?? null;
+        $status = $this->entityManager->getUnitOfWork()->getOriginalEntityData($writeoff)['status'] ?? null;
+
+        return $status instanceof DocStatus ? $status : ($status !== null ? DocStatus::from($status) : null);
     }
 }

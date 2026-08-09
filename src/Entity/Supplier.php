@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Post;
 use App\Repository\ClientRepository;
 use App\Repository\SupplierRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SupplierRepository::class)]
@@ -23,6 +24,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Patch(security: "is_granted('ROLE_ADMIN')"),
         new Delete(security: "is_granted('ROLE_ADMIN')"),
     ],
+
 )]
 class Supplier
 {
@@ -32,6 +34,7 @@ class Supplier
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['batch:read', 'receipts:read'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, nullable: true)]

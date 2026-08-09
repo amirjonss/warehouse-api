@@ -15,6 +15,8 @@ class WriteoffItemFactory
             ->setBatch($data->getBatch())
             ->setQuantity($data->getQuantity());
 
+        $data->getWriteoff()->addItem($writeoffItem);
+
         return $writeoffItem;
     }
 }

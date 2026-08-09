@@ -250,6 +250,8 @@ class SaleChangeStatusService
 
     private function getPreviousStatus(Sale $sale): ?DocStatus
     {
-        return $this->entityManager->getUnitOfWork()->getOriginalEntityData($sale)['status'] ?? null;
+        $status = $this->entityManager->getUnitOfWork()->getOriginalEntityData($sale)['status'] ?? null;
+
+        return $status instanceof DocStatus ? $status : ($status !== null ? DocStatus::from($status) : null);
     }
 }

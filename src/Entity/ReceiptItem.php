@@ -39,7 +39,8 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: "is_granted('ROLE_ADMIN')",
         ),
     ],
-    denormalizationContext: ['groups' => ['receipt:write']],
+    normalizationContext: ['groups' => ['receipt-item:read']],
+    denormalizationContext: ['groups' => ['receipt-item:write']],
 )]
 #[Assert\Expression(
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRate() === "1"',
@@ -50,42 +51,45 @@ class ReceiptItem
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['receipts:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    #[Groups(['receipt:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item:read'])]
     private ?Receipt $receipt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['receipt:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item:read', 'receipts:read'])]
     private ?Product $product = null;
 
     #[ORM\OneToOne]
     #[ORM\JoinColumn(unique: true, nullable: true)]
+    #[Groups(['receipts:read'])]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
-    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     #[Assert\Positive]
     private ?string $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     #[Assert\Positive]
     private ?string $price = null;
 
     #[ORM\Column(enumType: Currency::class)]
-    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
-    #[Groups(['receipt:write', 'receipt-item-update:write'])]
+    #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     #[Assert\Positive]
     private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['receipts:read', 'receipts:read', 'receipt-item:read'])]
     private ?string $total = null;
 
     public function getId(): ?int

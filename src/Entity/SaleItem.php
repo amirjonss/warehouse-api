@@ -40,6 +40,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: "is_granted('ROLE_SALES')",
         ),
     ],
+    normalizationContext: ['groups' => ['sale-item:read']],
     denormalizationContext: ['groups' => ['sale:write']],
 )]
 class SaleItem
@@ -47,44 +48,47 @@ class SaleItem
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['sales:read', 'sale-item:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    #[Groups(['sale:write'])]
+    #[Groups(['sale:write', 'sale-item:read'])]
     private ?Sale $sale = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['sale:write'])]
+    #[Groups(['sale:write', 'sales:read', 'sale-item:read'])]
     private ?Product $product = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
-    #[Groups(['sale:write', 'sale-item-update:write'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
     #[Assert\Positive]
     private ?string $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[Groups(['sale:write', 'sale-item-update:write'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
     #[Assert\Positive]
     private ?string $price = null;
 
     #[ORM\Column(enumType: Currency::class)]
-    #[Groups(['sale:write', 'sale-item-update:write'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
-    #[Groups(['sale:write', 'sale-item-update:write'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sale-item:read'])]
     #[Assert\Positive]
     private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['sales:read', 'sale-item:read'])]
     private ?string $total = null;
 
     /**
      * @var Collection<int, SaleItemAllocation>
      */
     #[ORM\OneToMany(targetEntity: SaleItemAllocation::class, mappedBy: 'saleItem', orphanRemoval: true)]
+    #[Groups(['sale-item:read'])]
     private Collection $allocations;
 
     public function __construct()
