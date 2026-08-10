@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
@@ -11,6 +12,9 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Component\Client\Dtos\ClientDebtSummaryDto;
+use App\Controller\ClientDebtSummaryAction;
+use App\Filter\HasDebtFilter;
 use App\Repository\ClientRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -21,6 +25,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiResource(
     operations: [
         new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new Post(
+            uriTemplate: '/clients/summary',
+            controller: ClientDebtSummaryAction::class,
+            security: "is_granted('ROLE_SALES')",
+            input: false,
+            output: ClientDebtSummaryDto::class,
+            read: false,
+            name: 'debtSummary',
+        ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_SALES')"),
         new Patch(security: "is_granted('ROLE_SALES')"),
@@ -29,6 +42,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationItemsPerPage: 20,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['name' => 'ipartial'])]
+#[ApiFilter(HasDebtFilter::class)]
+#[ApiFilter(OrderFilter::class, properties: ['debtUsd', 'debtUzs', 'name'])]
 class Client
 {
     #[ORM\Id]

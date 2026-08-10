@@ -40,4 +40,27 @@ class ProfitRepository extends ServiceEntityRepository
 
         return $result;
     }
+
+    public function getSummary(?string $from, ?string $to): array
+    {
+        $qb = $this->getEntityManager()->getConnection()->createQueryBuilder();
+        $qb->select(
+            "COALESCE(SUM(profit) FILTER (WHERE currency = 'USD'), 0) AS total_usd",
+            "COALESCE(SUM(profit) FILTER (WHERE currency = 'UZS'), 0) AS total_uzs",
+        )->from('profits');
+
+        if ($from !== null) {
+            $qb->andWhere('occurred_at >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('occurred_at < :to')->setParameter('to', $to);
+        }
+
+        $row = $qb->executeQuery()->fetchAssociative();
+
+        return [
+            'totalUsd' => (string) $row['total_usd'],
+            'totalUzs' => (string) $row['total_uzs'],
+        ];
+    }
 }

@@ -2,15 +2,24 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Core\Enums\ProfitEntryType;
 use App\Component\Product\Enums\Currency;
+use App\Component\Profit\Dtos\ProfitSummaryDto;
+use App\Controller\ProfitSummaryAction;
 use App\Repository\ProfitRepository;
 use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProfitRepository::class)]
 #[ORM\Table(name: 'profits')]
@@ -19,51 +28,83 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_profits_batch', columns: ['batch_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new GetCollection(
+            security: "is_granted('ROLE_ADMIN')",
+            parameters: [
+                'occurredAt' => new QueryParameter(
+                    filter: new DateFilter(),
+                    property: 'occurredAt'
+                ),
+            ]
+        ),
         new Get(security: "is_granted('ROLE_ADMIN')"),
+        new Post(
+            uriTemplate: '/profits/summary',
+            controller: ProfitSummaryAction::class,
+            normalizationContext: ['groups' => ['profit-sum:read']],
+            security: "is_granted('ROLE_ADMIN')",
+            input: false,
+            output: ProfitSummaryDto::class,
+            read: false,
+            name: 'profitSummary'
+        ),
     ],
+    normalizationContext: ['groups' => ['profits:read']]
 )]
+#[ApiFilter(SearchFilter::class, properties: ['product.name' => 'ipartial'])]
+#[ApiFilter(OrderFilter::class, properties: ['occurredAt', 'id'])]
 class Profit
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['profits:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['profits:read'])]
     private ?DateTimeInterface $occurredAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?Sale $sale = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?SaleItem $saleItem = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?SaleItemAllocation $saleItemAllocation = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?Product $product = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?Batch $batch = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[Groups(['profits:read'])]
     private ?string $profit = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[Groups(['profits:read'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(enumType: ProfitEntryType::class)]
+    #[Groups(['profits:read'])]
     private ?ProfitEntryType $type = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['profits:read'])]
     private ?User $createdBy = null;
 
     public function getId(): ?int

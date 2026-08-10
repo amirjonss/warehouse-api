@@ -37,11 +37,11 @@ class Batch
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read'])]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read'])]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read'])]
     private ?string $number = null;
 
     #[ORM\ManyToOne]

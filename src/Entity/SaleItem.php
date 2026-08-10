@@ -48,7 +48,7 @@ class SaleItem
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['sales:read', 'sale-item:read'])]
+    #[Groups(['sales:read', 'sale-item:read', 'profits:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'items')]
@@ -62,26 +62,26 @@ class SaleItem
     private ?Product $product = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
-    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read', 'profits:read'])]
     #[Assert\Positive]
     private ?string $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read', 'profits:read'])]
     #[Assert\Positive]
     private ?string $price = null;
 
     #[ORM\Column(enumType: Currency::class)]
-    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read', 'profits:read'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
-    #[Groups(['sale:write', 'sale-item-update:write', 'sale-item:read'])]
+    #[Groups(['sale:write', 'sale-item-update:write', 'sale-item:read', 'profits:read'])]
     #[Assert\Positive]
     private ?string $rate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
-    #[Groups(['sales:read', 'sale-item:read'])]
+    #[Groups(['sales:read', 'sale-item:read', 'profits:read'])]
     private ?string $total = null;
 
     /**

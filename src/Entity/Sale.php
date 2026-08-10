@@ -64,11 +64,11 @@ class Sale
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['sales:read'])]
+    #[Groups(['sales:read', 'profits:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, unique: true)]
-    #[Groups(['sales:read'])]
+    #[Groups(['sales:read', 'profits:read'])]
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]

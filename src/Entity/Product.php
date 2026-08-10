@@ -47,14 +47,14 @@ class Product
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['writeoffs:read'])]
+    #[Groups(['writeoffs:read', 'profits:read', 'stock-movements:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $sku = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'writeoffs:read'])]
+    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(inversedBy: 'products')]
