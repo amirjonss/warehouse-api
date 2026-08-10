@@ -10,7 +10,7 @@ use DateTime;
 
 class WriteoffFactory
 {
-    private const NUMBER_PREFIX = 'СП-';
+    private const NUMBER_PREFIX = 'WR-';
     private const NUMBER_LENGTH = 5;
 
     public function __construct(private readonly WriteoffRepository $writeoffRepository)

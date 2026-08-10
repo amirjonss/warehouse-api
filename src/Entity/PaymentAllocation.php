@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -40,6 +42,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     denormalizationContext: ['groups' => ['payment-allocation:write']],
 )]
+#[ApiFilter(SearchFilter::class, properties: ['payment' => 'exact'])]
 #[Assert\Expression(
     'this.getPayment() === null || this.getCurrency() === null || this.getCurrency() === this.getPayment().getCurrency() || this.getPayRate() !== null',
     message: 'payRate is required when the allocation currency differs from the payment currency',

@@ -11,7 +11,7 @@ use DateTime;
 
 class ReceiptFactory
 {
-    private const NUMBER_PREFIX = 'ПР-';
+    private const NUMBER_PREFIX = 'RC-';
     private const NUMBER_LENGTH = 5;
 
     public function __construct(private readonly ReceiptRepository $receiptRepository)

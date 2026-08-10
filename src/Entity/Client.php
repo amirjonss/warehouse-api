@@ -2,15 +2,17 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Component\Client\Dtos\ClientDebtDto;
-use App\Controller\ClientDebtAction;
 use App\Repository\ClientRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
@@ -19,19 +21,14 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiResource(
     operations: [
         new GetCollection(security: "is_granted('ROLE_SALES')"),
-        new GetCollection(
-            uriTemplate: '/clients/debt',
-            controller: ClientDebtAction::class,
-            security: "is_granted('ROLE_SALES')",
-            output: ClientDebtDto::class,
-            read: false
-        ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_SALES')"),
         new Patch(security: "is_granted('ROLE_SALES')"),
         new Delete(security: "is_granted('ROLE_ADMIN')"),
     ],
+    paginationItemsPerPage: 20,
 )]
+#[ApiFilter(SearchFilter::class, properties: ['name' => 'ipartial'])]
 class Client
 {
     #[ORM\Id]
@@ -55,6 +52,14 @@ class Client
 
     #[ORM\Column]
     private ?bool $isActive = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[ApiProperty(writable: false)]
+    private ?string $debtUsd = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[ApiProperty(writable: false)]
+    private ?string $debtUzs = '0.00';
 
     public function getId(): ?int
     {
@@ -109,7 +114,7 @@ class Client
         return $this;
     }
 
-    public function isActive(): ?bool
+    public function getIsActive(): ?bool
     {
         return $this->isActive;
     }
@@ -117,6 +122,30 @@ class Client
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function getDebtUsd(): ?string
+    {
+        return $this->debtUsd;
+    }
+
+    public function setDebtUsd(string $debtUsd): static
+    {
+        $this->debtUsd = $debtUsd;
+
+        return $this;
+    }
+
+    public function getDebtUzs(): ?string
+    {
+        return $this->debtUzs;
+    }
+
+    public function setDebtUzs(string $debtUzs): static
+    {
+        $this->debtUzs = $debtUzs;
 
         return $this;
     }

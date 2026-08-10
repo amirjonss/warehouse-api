@@ -11,7 +11,7 @@ use DateTime;
 
 class SaleFactory
 {
-    private const NUMBER_PREFIX = 'РН-';
+    private const NUMBER_PREFIX = 'SL-';
     private const NUMBER_LENGTH = 5;
 
     public function __construct(private readonly SaleRepository $saleRepository)

@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -23,6 +25,7 @@ use Doctrine\ORM\Mapping as ORM;
         new Get(security: "is_granted('ROLE_SALES')"),
     ],
 )]
+#[ApiFilter(SearchFilter::class, properties: ['sale' => 'exact'])]
 class Debt
 {
     #[ORM\Id]

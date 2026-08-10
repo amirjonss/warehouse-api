@@ -55,7 +55,7 @@ class PaymentChangeStatusService
     private function post(Payment $payment, ?DocStatus $previousStatus): Payment
     {
         $this->assertHasAllocations($payment);
-        $this->assertNotOverAllocated($payment);
+        $this->assertFullyAllocated($payment);
 
         return $this->entityManager->wrapInTransaction(function () use ($payment, $previousStatus) {
             $this->paymentRepository->lockPayments([$payment]);
@@ -108,7 +108,12 @@ class PaymentChangeStatusService
         }
     }
 
-    private function assertNotOverAllocated(Payment $payment): void
+    /**
+     * The whole payment amount must be allocated before posting — no partial
+     * allocation. We don't support advance/credit balances, so any unallocated
+     * remainder would otherwise post with no ledger trace of where it went.
+     */
+    private function assertFullyAllocated(Payment $payment): void
     {
         $totalSpent = '0';
 
@@ -121,6 +126,15 @@ class PaymentChangeStatusService
                 'Allocated amount %s exceeds the payment amount %s.',
                 $totalSpent,
                 $payment->getAmount()
+            ));
+        }
+
+        if (bccomp($totalSpent, $payment->getAmount(), 2) < 0) {
+            throw new InsufficientPaymentAmountException(sprintf(
+                'Allocated amount %s is less than the payment amount %s — allocate the remaining %s before posting.',
+                $totalSpent,
+                $payment->getAmount(),
+                bcsub($payment->getAmount(), $totalSpent, 2)
             ));
         }
     }

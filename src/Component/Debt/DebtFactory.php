@@ -33,6 +33,12 @@ class DebtFactory
             ->setCurrency($currency)
             ->setCreatedBy($createdBy);
 
+        if ($currency === Currency::USD) {
+            $client->setDebtUsd(bcadd($client->getDebtUsd() ?? '0', $amount, 2));
+        } else {
+            $client->setDebtUzs(bcadd($client->getDebtUzs() ?? '0', $amount, 2));
+        }
+
         return $debt;
     }
 }

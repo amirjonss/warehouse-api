@@ -40,7 +40,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationItemsPerPage: 20
 )]
 #[ApiFilter(RangeFilter::class, properties: ['minStock'])]
-#[ApiFilter(SearchFilter::class, properties: ['name' => 'partial', 'sku' => 'exact', 'category.id' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['name' => 'ipartial', 'sku' => 'exact', 'category.id' => 'exact']), ]
 #[ApiFilter(LowStockFilter::class)]
 class Product
 {
@@ -183,7 +183,7 @@ class Product
         return $this;
     }
 
-    public function isActive(): ?bool
+    public function getIsActive(): ?bool
     {
         return $this->isActive;
     }

@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
@@ -12,6 +13,7 @@ use App\Component\Core\Enums\RateKind;
 use App\Component\Product\Enums\Currency;
 use App\Controller\PaymentChangeStatusAction;
 use App\Controller\PaymentCreateAction;
+use App\Controller\PaymentDeleteAction;
 use App\Repository\PaymentRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -35,6 +37,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/payments/{id}/change_status',
             controller: PaymentChangeStatusAction::class,
             denormalizationContext: ['groups' => ['payments-status:write']],
+            security: "is_granted('ROLE_SALES')",
+        ),
+        new Delete(
+            controller: PaymentDeleteAction::class,
             security: "is_granted('ROLE_SALES')",
         )
     ],

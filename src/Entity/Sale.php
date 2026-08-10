@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -56,6 +57,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     denormalizationContext: ['groups' => ['sales:write']],
     paginationItemsPerPage: 20,
 )]
+#[ApiFilter(SearchFilter::class, properties: ['customer' => 'exact'])]
 #[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 class Sale
 {

@@ -31,7 +31,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRateSell() === "1"',
     message: 'rateSell must be 1 for a UZS batch',
 )]
-#[ApiFilter(SearchFilter::class, properties: ['product.name' => 'partial'])]
+#[ApiFilter(SearchFilter::class, properties: ['product.name' => 'ipartial'])]
 class Batch
 {
     #[ORM\Id]

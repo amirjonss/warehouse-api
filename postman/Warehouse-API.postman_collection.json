@@ -954,7 +954,7 @@
     },
     {
       "name": "Clients",
-      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for read/create/update (including /clients/debt). Delete requires ROLE_ADMIN.",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for read/create/update. Delete requires ROLE_ADMIN. debtUsd/debtUzs are denormalized columns on Client (not computed on read), kept in sync by DebtFactory on every Debt ledger entry — same pattern as Product/Batch.remainingQty. There is no separate /clients/debt endpoint anymore, GET /clients carries this directly with normal pagination/filtering.",
       "item": [
         {
           "name": "List Clients",
@@ -976,30 +976,6 @@
               ]
             },
             "description": "GET collection of Clients."
-          },
-          "response": []
-        },
-        {
-          "name": "List Client Debt",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/ld+json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/clients/debt",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients",
-                "debt"
-              ]
-            },
-            "description": "Read-only report: every client with outstanding debt (id, name, debtUsd, debtUzs) = SUM(Debt.amount) per currency from the debts ledger (see Debts folder) — not a live aggregation over sales/payments. Clients with nothing owed still appear with 0.00/0.00."
           },
           "response": []
         },
@@ -2056,7 +2032,7 @@
     },
     {
       "name": "Payments",
-      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything, including change_status.",
+      "description": "Requires: ROLE_SALES (or ROLE_ADMIN) for everything, including change_status and delete. Delete only works while status=draft.",
       "item": [
         {
           "name": "List Payments",
@@ -2182,7 +2158,7 @@
                 "change_status"
               ]
             },
-            "description": "Only way to change status now (no generic PATCH on Payment). draft->posted requires at least one allocation (422 PaymentStatusTransitionException otherwise — a payment can't be posted and then allocated later, since allocations can only be added while draft), checks that SUM(amountSpent) across allocations doesn't exceed Payment.amount, and that SUM(amountClosed) per sale+currency doesn't exceed that sale's outstanding debt read from the debts ledger (422 InsufficientPaymentAmountException otherwise), then writes a docType=payment, -amountClosed entry to Debts for each allocation. posted->cancelled writes the opposite-sign (+amountClosed) reversal entries to Debts — nothing is deleted, GET /debts?payment=... shows both. posted->draft is rejected. The payment row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same payment can't both succeed — the loser gets 422 'already changed by another request'.",
+            "description": "Only way to change status now (no generic PATCH on Payment). draft->posted requires at least one allocation (422 PaymentStatusTransitionException otherwise — a payment can't be posted and then allocated later, since allocations can only be added while draft), checks that SUM(amountSpent) across allocations equals Payment.amount exactly — not just doesn't exceed it (422 InsufficientPaymentAmountException if under- or over-allocated; we don't track advance/credit balances, so a payment must be fully allocated before it can post), and that SUM(amountClosed) per sale+currency doesn't exceed that sale's outstanding debt read from the debts ledger (422 InsufficientPaymentAmountException otherwise), then writes a docType=payment, -amountClosed entry to Debts for each allocation. posted->cancelled writes the opposite-sign (+amountClosed) reversal entries to Debts — nothing is deleted, GET /debts?payment=... shows both. posted->draft is rejected. The payment row is locked and its status re-checked right before writing, so two concurrent change_status calls on the same payment can't both succeed — the loser gets 422 'already changed by another request'.",
             "body": {
               "mode": "raw",
               "raw": "{\n    \"status\": \"posted\"\n}",
@@ -2207,6 +2183,30 @@
               }
             }
           ]
+        },
+        {
+          "name": "Delete Payments",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/ld+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Only works while status=draft — 422 otherwise. Cascades to the payment's PaymentAllocation rows via orphanRemoval (same pattern as Delete Sales)."
+          },
+          "response": []
         }
       ]
     },
@@ -2827,7 +2827,7 @@
                 "debts"
               ]
             },
-            "description": "Read-only client debt ledger — no Post/Patch/Delete. One entry per event that changes a client's debt: docType=sale, +amount when a Sale is posted (per currency bucket); docType=payment, -amount per Payment Allocation when a Payment is posted. Cancelling either writes the opposite-sign entry (docType unchanged) — nothing is mutated or deleted. SUM(amount) WHERE sale=X or WHERE client=X is the current balance (see GET /clients/debt for the pre-aggregated version)."
+            "description": "Read-only client debt ledger — no Post/Patch/Delete. One entry per event that changes a client's debt: docType=sale, +amount when a Sale is posted (per currency bucket); docType=payment, -amount per Payment Allocation when a Payment is posted. Cancelling either writes the opposite-sign entry (docType unchanged) — nothing is mutated or deleted. SUM(amount) WHERE sale=X or WHERE client=X is the current balance — pre-aggregated as Client.debtUsd/debtUzs (denormalized, kept in sync by DebtFactory), no separate endpoint needed anymore."
           },
           "response": []
         },

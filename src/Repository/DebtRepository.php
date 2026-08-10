@@ -44,27 +44,4 @@ class DebtRepository extends ServiceEntityRepository
 
         return $result;
     }
-
-    /**
-     * @return array<int, array{usd: string, uzs: string}> баланс, индексировано по client id
-     */
-    public function getBalanceByClient(): array
-    {
-        $rows = $this->createQueryBuilder('d')
-            ->select('IDENTITY(d.client) AS clientId, d.currency AS currency, SUM(d.amount) AS total')
-            ->groupBy('d.client', 'd.currency')
-            ->getQuery()
-            ->getResult();
-        $result = [];
-
-        foreach ($rows as $row) {
-            /** @var $currency Currency */
-            $currency = $row['currency'];
-            $clientId = (int) $row['clientId'];
-            $result[$clientId] ??= ['usd' => '0', 'uzs' => '0'];
-            $result[$clientId][strtolower($currency->value)] = (string) $row['total'];
-        }
-
-        return $result;
-    }
 }

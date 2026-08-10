@@ -50,8 +50,8 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Post(
             controller: UserCreateAction::class,
-            security: "is_granted('ROLE_ADMIN')",
             denormalizationContext: ['groups' => ['user:create:write']],
+            security: "is_granted('ROLE_ADMIN')",
             output: UserCreatedDto::class,
         ),
         new Patch(
@@ -118,7 +118,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
 )]
 #[ApiFilter(OrderFilter::class, properties: ['id', 'createdAt', 'updatedAt', 'email'])]
-#[ApiFilter(SearchFilter::class, properties: ['id' => 'exact', 'email' => 'partial'])]
+#[ApiFilter(SearchFilter::class, properties: ['id' => 'exact', 'email' => 'ipartial'])]
 //#[UniqueEntity('email', message: 'This email is already used')]
 #[ORM\Entity(repositoryClass: UserRepository::class), ORM\Table(name: "users")]
 class User implements
