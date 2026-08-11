@@ -12,8 +12,10 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
+use App\Component\Expense\Dtos\ExpenseDailyDto;
 use App\Component\Expense\Dtos\ExpenseSummaryDto;
 use App\Controller\ExpenseCreateAction;
+use App\Controller\ExpenseDailyAction;
 use App\Controller\ExpenseSummaryAction;
 use App\Repository\ExpenseRepository;
 use DateTimeInterface;
@@ -49,6 +51,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             output: ExpenseSummaryDto::class,
             read: false,
             name: 'expenseSummary',
+        ),
+        new Post(
+            uriTemplate: '/expenses/daily',
+            controller: ExpenseDailyAction::class,
+            normalizationContext: ['groups' => ['expense-daily:read']],
+            security: "is_granted('ROLE_SALES')",
+            input: false,
+            output: ExpenseDailyDto::class,
+            read: false,
+            name: 'expenseDaily',
         ),
         new Delete(security: "is_granted('ROLE_SALES')"),
     ],

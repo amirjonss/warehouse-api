@@ -18,4 +18,40 @@ class SaleItemRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, SaleItem::class);
     }
+
+    /**
+     * Топ товаров по проданному количеству за период (только проведённые продажи).
+     *
+     * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
+     * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     *
+     * @return array<int, array{productId: int, productName: string, quantity: string, totalUsd: string, totalUzs: string}>
+     */
+    public function getTopProducts(?string $from, ?string $to, int $limit): array
+    {
+        $qb = $this->getEntityManager()->getConnection()->createQueryBuilder();
+        $qb->select(
+            'p.id AS product_id',
+            'p.name AS product_name',
+            'SUM(si.quantity) AS quantity',
+            "COALESCE(SUM(si.total) FILTER (WHERE si.currency = 'USD'), 0) AS total_usd",
+            "COALESCE(SUM(si.total) FILTER (WHERE si.currency = 'UZS'), 0) AS total_uzs",
+        )
+            ->from('sale_items', 'si')
+            ->join('si', 'sales', 's', 's.id = si.sale_id')
+            ->join('si', 'product', 'p', 'p.id = si.product_id')
+            ->andWhere("s.status = 'posted'")
+            ->groupBy('p.id, p.name')
+            ->orderBy('quantity', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($from !== null) {
+            $qb->andWhere('s.doc_date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('s.doc_date < :to')->setParameter('to', $to);
+        }
+
+        return $qb->executeQuery()->fetchAllAssociative();
+    }
 }

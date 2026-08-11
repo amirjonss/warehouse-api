@@ -43,14 +43,15 @@ class ProductRepository extends ServiceEntityRepository
      * including out-of-stock) directly off the denormalized remaining_qty column, so the
      * dashboard/stock summary tiles don't need to fetch and sum every product on the frontend.
      *
-     * @return array{positions: int, low: int}
+     * @return array{positions: int, low: int, outOfStock: int}
      */
     public function getStockSummary(): array
     {
         $sql = <<<'SQL'
             SELECT
                 COUNT(*) FILTER (WHERE remaining_qty > 0) AS positions,
-                COUNT(*) FILTER (WHERE remaining_qty <= min_stock) AS low
+                COUNT(*) FILTER (WHERE remaining_qty <= min_stock) AS low,
+                COUNT(*) FILTER (WHERE remaining_qty <= 0) AS out_of_stock
             FROM product
             SQL;
 
@@ -59,6 +60,7 @@ class ProductRepository extends ServiceEntityRepository
         return [
             'positions' => (int) $row['positions'],
             'low' => (int) $row['low'],
+            'outOfStock' => (int) $row['out_of_stock'],
         ];
     }
 

@@ -39,4 +39,30 @@ class ExpenseRepository extends ServiceEntityRepository
 
         return (string) $row['total_amount'];
     }
+
+    /**
+     * Суммы расходов по дням за период — для столбчатой диаграммы одним запросом.
+     *
+     * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
+     * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     *
+     * @return array<int, array{doc_date: string, total: string, count: string}>
+     */
+    public function getDailyTotals(?string $from, ?string $to): array
+    {
+        $qb = $this->getEntityManager()->getConnection()->createQueryBuilder();
+        $qb->select('doc_date', 'SUM(amount) AS total', 'COUNT(*) AS count')
+            ->from('expenses')
+            ->groupBy('doc_date')
+            ->orderBy('doc_date');
+
+        if ($from !== null) {
+            $qb->andWhere('doc_date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('doc_date < :to')->setParameter('to', $to);
+        }
+
+        return $qb->executeQuery()->fetchAllAssociative();
+    }
 }

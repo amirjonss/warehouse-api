@@ -24,6 +24,6 @@ class ProductStockSummaryAction extends AbstractController
     {
         $summary = $this->productRepository->getStockSummary();
 
-        return new ProductStockSummaryDto($summary['positions'], $summary['low']);
+        return new ProductStockSummaryDto($summary['positions'], $summary['low'], $summary['outOfStock']);
     }
 }

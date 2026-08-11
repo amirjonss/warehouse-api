@@ -11,9 +11,11 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Component\Product\Dtos\ProductStockSummaryDto;
+use App\Component\Product\Dtos\TopProductsDto;
 use App\Component\Product\Enums\Currency;
 use App\Component\Product\Enums\UnitCode;
 use App\Controller\ProductStockSummaryAction;
+use App\Controller\ProductTopSalesAction;
 use App\Filter\LowStockFilter;
 use App\Repository\ProductRepository;
 use Doctrine\DBAL\Types\Types;
@@ -33,13 +35,22 @@ use Symfony\Component\Serializer\Attribute\Groups;
             read: false,
             name: 'stockSummary',
         ),
+        new Post(
+            uriTemplate: '/products/top-sales',
+            controller: ProductTopSalesAction::class,
+            security: "is_granted('ROLE_SALES')",
+            input: false,
+            output: TopProductsDto::class,
+            read: false,
+            name: 'topSales',
+        ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_ADMIN')"),
         new Patch(security: "is_granted('ROLE_ADMIN')"),
     ],
     paginationItemsPerPage: 20
 )]
-#[ApiFilter(RangeFilter::class, properties: ['minStock'])]
+#[ApiFilter(RangeFilter::class, properties: ['minStock', 'remainingQty'])]
 #[ApiFilter(SearchFilter::class, properties: ['name' => 'ipartial', 'sku' => 'exact', 'category.id' => 'exact']), ]
 #[ApiFilter(LowStockFilter::class)]
 class Product
