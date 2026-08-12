@@ -7,6 +7,7 @@ use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
@@ -14,6 +15,7 @@ use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Core\Enums\DocStatus;
 use App\Controller\ReceiptCreateAction;
 use App\Controller\ReceiptChangeStatusAction;
+use App\Controller\ReceiptDeleteAction;
 use App\Repository\ReceiptRepository;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -45,7 +47,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
             controller: ReceiptChangeStatusAction::class,
             denormalizationContext: ['groups' => ['receipts-status:write']],
             security: "is_granted('ROLE_ADMIN')",
-        )
+        ),
+        new Delete(
+            controller: ReceiptDeleteAction::class,
+            security: "is_granted('ROLE_ADMIN')",
+        ),
     ],
     normalizationContext: ['groups' => ['receipts:read']],
     denormalizationContext: ['groups' => ['receipts:write']],

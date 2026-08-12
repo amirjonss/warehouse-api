@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
@@ -31,7 +32,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRateSell() === "1"',
     message: 'rateSell must be 1 for a UZS batch',
 )]
-#[ApiFilter(SearchFilter::class, properties: ['product.name' => 'ipartial'])]
+#[ApiFilter(SearchFilter::class, properties: ['product' => 'exact', 'product.name' => 'ipartial'])]
+#[ApiFilter(OrderFilter::class, properties: ['receivedAt', 'id'])]
 class Batch
 {
     #[ORM\Id]

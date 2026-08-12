@@ -48,7 +48,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     . '(this.getType().value === "adjust" && this.getQuantity() != 0)',
     message: 'quantity sign must match movement type',
 )]
-#[ApiFilter(SearchFilter::class, properties: ['type' => 'exact', 'product.name' => 'ipartial'])]
+#[ApiFilter(SearchFilter::class, properties: ['type' => 'exact', 'product' => 'exact', 'product.name' => 'ipartial'])]
 #[ApiFilter(OrderFilter::class, properties: ['occurredAt', 'id'])]
 class StockMovement
 {
