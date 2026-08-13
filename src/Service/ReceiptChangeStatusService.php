@@ -108,6 +108,8 @@ class ReceiptChangeStatusService
             $this->receiptRepository->lockReceipts([$receipt]);
             $this->assertNotChangedConcurrently($receipt, $previousStatus);
 
+            $this->batchRepository->lockBatches($this->collectBatches($receipt));
+
             foreach ($receipt->getItems() as $receiptItem) {
                 $batch = $receiptItem->getBatch();
                 if ($batch !== null && $this->batchRepository->isUsed($batch)) {
@@ -118,18 +120,46 @@ class ReceiptChangeStatusService
                 }
             }
 
+            // Reverse via a compensating ledger entry rather than deleting the batch: the
+            // stock_movements table is append-only and is the source of truth for remainingQty
+            // (StockMovementFactory increments it on every movement, never recomputes it), and
+            // batch_id has onDelete: CASCADE, so removing the batch would silently wipe its
+            // history and leave remainingQty permanently overstated.
             foreach ($receipt->getItems() as $receiptItem) {
                 $batch = $receiptItem->getBatch();
                 if ($batch === null) {
                     continue;
                 }
 
+                $stockMovement = $this->stockMovementFactory->create(
+                    MovementType::ADJUST,
+                    $receiptItem->getProduct(),
+                    $batch,
+                    bcmul($batch->getInitialQty(), '-1', 3),
+                    DocumentType::RECEIPT,
+                    $receipt->getId(),
+                    $receipt->getNumber(),
+                    $this->currentUser->getUser()
+                );
+                $this->entityManager->persist($stockMovement);
+
                 $receiptItem->setBatch(null);
-                $this->entityManager->remove($batch);
             }
 
             return $receipt;
         });
+    }
+
+    private function collectBatches(Receipt $receipt): array
+    {
+        $batches = [];
+        foreach ($receipt->getItems() as $receiptItem) {
+            if ($receiptItem->getBatch() !== null) {
+                $batches[] = $receiptItem->getBatch();
+            }
+        }
+
+        return $batches;
     }
 
     private function assertNotChangedConcurrently(Receipt $receipt, ?DocStatus $expectedStatus): void

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Component\Core\Enums\DocStatus;
 use App\Component\PaymentAllocation\Exceptions\MissingSaleException;
+use App\Component\PaymentAllocation\Exceptions\PaymentClientMismatchException;
 use App\Component\PaymentAllocation\Exceptions\PaymentNotEditableException;
 use App\Component\PaymentAllocation\Exceptions\SaleNotPostedException;
 use App\Entity\PaymentAllocation;
@@ -22,6 +23,10 @@ class PaymentAllocationValidationService
 
         if ($data->getSale()->getStatus() !== DocStatus::POSTED) {
             throw new SaleNotPostedException('Cannot allocate a payment to a sale that is not posted yet.');
+        }
+
+        if ($data->getSale()->getCustomer()?->getId() !== $data->getPayment()->getClient()?->getId()) {
+            throw new PaymentClientMismatchException('Cannot allocate a payment to a sale of a different client.');
         }
     }
 }

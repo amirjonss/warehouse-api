@@ -78,6 +78,7 @@ class PaymentAllocation
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
     #[Groups(['payment-allocation:write', 'payment-allocation-update:write'])]
+    #[Assert\Positive]
     private ?string $payRate = null;
 
     #[ORM\Column]
