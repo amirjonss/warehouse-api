@@ -24,6 +24,16 @@ class UserRepository extends ServiceEntityRepository
         return $this->findOneBy(['email' => mb_strtolower(trim($email))]);
     }
 
+    public function findActiveOneByEmail(string $email): ?User
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.email = :email')
+            ->andWhere('u.deletedAt IS NULL')
+            ->setParameter('email', mb_strtolower(trim($email)))
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     // /**
     //  * @return User[] Returns an array of User objects
     //  */

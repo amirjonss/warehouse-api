@@ -5,10 +5,8 @@ security:
 
     # https://symfony.com/doc/current/security.html#where-do-users-come-from-user-providers
     providers:
-        entity_provider:
-            entity:
-                class: App\Entity\User
-                property: email
+        app_user_provider:
+            id: App\Security\JwtUserProvider
 
         jwt:
             lexik_jwt:
@@ -58,7 +56,7 @@ security:
         main:
             stateless: true
             security: true
-            provider: entity_provider
+            provider: app_user_provider
             # provider: jwt # if you use microservices
             jwt: ~
 

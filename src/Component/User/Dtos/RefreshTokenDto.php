@@ -6,7 +6,7 @@ namespace App\Component\User\Dtos;
 
 class RefreshTokenDto
 {
-    public function __construct(private int $id, private int $iat)
+    public function __construct(private int $id, private int $iat, private int $tokenVersion = 0)
     {
     }
 
@@ -18,5 +18,10 @@ class RefreshTokenDto
     public function getIat(): int
     {
         return $this->iat;
+    }
+
+    public function getTokenVersion(): int
+    {
+        return $this->tokenVersion;
     }
 }

@@ -32,6 +32,7 @@ class UserChangePasswordAction extends AbstractController
         $this->validate($data);
 
         $userManager->hashPassword($user, $data->getPassword());
+        $user->bumpTokenVersion();
         $userManager->save($user, true);
 
         return $user;

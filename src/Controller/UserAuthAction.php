@@ -29,7 +29,7 @@ class UserAuthAction extends AbstractController
         UserPasswordHasherInterface $passwordEncoder,
         TokensCreator $tokensCreator
     ): Response {
-        $user = $userRepository->findOneByEmail($data->getEmail());
+        $user = $userRepository->findActiveOneByEmail($data->getEmail());
 
         if ($user === null) {
             $this->throwInvalidCredentials();

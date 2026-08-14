@@ -7,6 +7,7 @@ namespace App\Component\Core;
 use App\Component\User\CurrentUser;
 use App\Entity\Interfaces\DeletedAtSettableInterface;
 use App\Entity\Interfaces\DeletedBySettableInterface;
+use App\Entity\User;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -25,6 +26,10 @@ class MarkEntityAsDeleted extends AbstractManager
 
         if ($entity instanceof DeletedBySettableInterface) {
             $entity->setDeletedBy($this->currentUser->getUser());
+        }
+
+        if ($entity instanceof User) {
+            $entity->bumpTokenVersion();
         }
 
         $this->save($entity, $needToFlush);

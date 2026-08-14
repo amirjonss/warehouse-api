@@ -26,7 +26,7 @@ class TokensCreator
      */
     public function create(User $user): TokensDto
     {
-        return new TokensDto($this->generateAccessToken($user), $this->generateRefreshToken($user->getId()));
+        return new TokensDto($this->generateAccessToken($user), $this->generateRefreshToken($user));
     }
 
     /**
@@ -46,6 +46,7 @@ class TokensCreator
                 'id' => $user->getId(),
                 'username' => $user->getEmail(),
                 'roles' => $user->getRoles(),
+                'tokenVersion' => $user->getTokenVersion(),
             ]
         );
     }
@@ -56,20 +57,21 @@ class TokensCreator
     }
 
     /**
-     * @param int $userId
+     * @param User $user
      * @return string
      * @throws JWTEncodeFailureException
      * @throws Exception
      */
-    private function generateRefreshToken(int $userId): string
+    private function generateRefreshToken(User $user): string
     {
         $expInterval = new DateInterval($this->getEnv('tokens_creator.refresh_expiration_period'));
 
         return $this->tokenEncoder->encode(
             [
-                'id' => $userId,
+                'id' => $user->getId(),
                 'iat' => (new DateTime())->getTimestamp(),
                 'exp' => (new DateTime())->add($expInterval)->getTimestamp(),
+                'tokenVersion' => $user->getTokenVersion(),
             ]
         );
     }

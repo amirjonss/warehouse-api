@@ -22,6 +22,7 @@ use App\Controller\UserAuthByRefreshTokenAction;
 use App\Controller\UserChangePasswordAction;
 use App\Controller\UserCreateAction;
 use App\Controller\UserIsUniqueEmailAction;
+use App\Controller\UserLogoutAction;
 use App\Entity\Interfaces\CreatedAtSettableInterface;
 use App\Entity\Interfaces\DeletedAtSettableInterface;
 use App\Entity\Interfaces\DeletedBySettableInterface;
@@ -54,6 +55,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             denormalizationContext: ['groups' => ['user:create:write']],
             security: "is_granted('ROLE_ADMIN')",
             output: UserCreatedDto::class,
+            validate: false,
         ),
         new Patch(
             denormalizationContext: ['groups' => ['user:put:write']],
@@ -72,6 +74,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             denormalizationContext: ['groups' => ['user:empty:body']],
             input: false,
             name: 'aboutMe',
+        ),
+        new Post(
+            uriTemplate: 'users/logout',
+            controller: UserLogoutAction::class,
+            openapi: new Operation(
+                summary: 'Revokes all access/refresh tokens issued to the authenticated user'
+            ),
+            denormalizationContext: ['groups' => ['user:empty:body']],
+            input: false,
+            name: 'logout',
         ),
         new Post(
             uriTemplate: 'users/auth',
@@ -157,6 +169,9 @@ class User implements
     #[Groups(['user:read', 'user:create:write'])]
     private array $roles = [];
 
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $tokenVersion = 0;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['user:read'])]
     private ?DateTimeInterface $createdAt = null;
@@ -203,6 +218,18 @@ class User implements
     public function setRoles(array $roles): self
     {
         $this->roles = $roles;
+
+        return $this;
+    }
+
+    public function getTokenVersion(): int
+    {
+        return $this->tokenVersion;
+    }
+
+    public function bumpTokenVersion(): self
+    {
+        $this->tokenVersion++;
 
         return $this;
     }

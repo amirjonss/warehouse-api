@@ -6,11 +6,9 @@ namespace App\Controller;
 
 use App\Component\User\Dtos\RefreshTokenDto;
 use App\Component\User\Dtos\RefreshTokenRequestDto;
-use App\Component\User\Dtos\TokensDto;
 use App\Component\User\Exceptions\AuthException;
 use App\Component\User\TokensCreator;
 use App\Controller\Base\AbstractController;
-use App\Controller\Base\Constants\ResponseFormat;
 use App\Repository\UserRepository;
 use Lexik\Bundle\JWTAuthenticationBundle\Encoder\JWTEncoderInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException;
@@ -45,7 +43,11 @@ class UserAuthByRefreshTokenAction extends AbstractController
 
         $user = $userRepository->find($refreshTokenDto->getId());
 
-        if ($user === null) {
+        if ($user === null || $user->getDeletedAt() !== null) {
+            $this->throwInvalidCredentials();
+        }
+
+        if ($user->getTokenVersion() !== $refreshTokenDto->getTokenVersion()) {
             $this->throwInvalidCredentials();
         }
 
