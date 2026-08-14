@@ -4,37 +4,39 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Component\User\Dtos\UserPasswordDto;
 use App\Component\User\UserManager;
 use App\Controller\Base\AbstractController;
 use App\Entity\User;
-use App\Repository\UserRepository;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Symfony\Component\HttpFoundation\Request;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-/**
- * Class CreateUserController
- *
- * @method User findEntityOrError(ServiceEntityRepository $repository, int $id)
- * @method UserPasswordDto getDtoFromRequest(Request $request, string $dtoClass)
- *
- * @package App\Controller
- */
 class UserChangePasswordAction extends AbstractController
 {
     public function __invoke(
         User $data,
         UserManager $userManager,
-        UserRepository $repository,
+        UserPasswordHasherInterface $passwordEncoder,
+        EntityManagerInterface $entityManager,
         int $id
     ): User {
-        $user = $this->findEntityOrError($repository, $id);
         $this->validate($data);
 
-        $userManager->hashPassword($user, $data->getPassword());
-        $user->bumpTokenVersion();
-        $userManager->save($user, true);
+        $newPlainPassword = $data->getPassword();
 
-        return $user;
+        $originalData = $entityManager->getUnitOfWork()->getOriginalEntityData($data);
+        $oldPasswordHash = $originalData['password'] ?? null;
+
+        $referenceUser = (new User())->setPassword($oldPasswordHash ?? '');
+
+        if ($oldPasswordHash === null || !$passwordEncoder->isPasswordValid($referenceUser, $data->getCurrentPassword())) {
+            throw new BadRequestHttpException('Current password is incorrect');
+        }
+
+        $userManager->hashPassword($data, $newPlainPassword);
+        $data->bumpTokenVersion();
+        $userManager->save($data, true);
+
+        return $data;
     }
 }

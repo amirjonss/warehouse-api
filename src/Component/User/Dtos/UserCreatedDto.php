@@ -20,6 +20,12 @@ class UserCreatedDto
 
         #[Groups(['users:read'])]
         private array $roles,
+
+        #[Groups(['users:read'])]
+        private string $firstName,
+
+        #[Groups(['users:read'])]
+        private ?string $lastName = null,
     ) {
     }
 
@@ -41,5 +47,15 @@ class UserCreatedDto
     public function getRoles(): array
     {
         return $this->roles;
+    }
+
+    public function getFirstName(): string
+    {
+        return $this->firstName;
+    }
+
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
     }
 }

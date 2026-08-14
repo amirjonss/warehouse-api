@@ -36,6 +36,8 @@ class AskUsersCreateCommand extends Command
         $questionHelper = $this->getHelper('question');
         $emailQuestion = new Question('Email: ');
         $roleQuestion = new Question(sprintf('Role (%s): ', implode(' / ', UserFactory::ALLOWED_ROLES)));
+        $firstNameQuestion = new Question('First name: ');
+        $lastNameQuestion = new Question('Last name: ');
 
         $email = '';
         while ($email === '' || $this->userRepository->findOneByEmail($email) !== null) {
@@ -56,9 +58,13 @@ class AskUsersCreateCommand extends Command
             }
         }
 
+        $firstName = (string) $questionHelper->ask($input, $output, $firstNameQuestion);
+        $lastName = (string) $questionHelper->ask($input, $output, $lastNameQuestion);
+
+
         $password = $this->passwordGenerator->generate();
 
-        $user = $this->userFactory->create($email, $password, [$role]);
+        $user = $this->userFactory->create($email, $password, [$role], $firstName, $lastName);
         $this->userManager->save($user, true);
 
         $io->success(sprintf('User #%d created: %s / %s', $user->getId(), $email, $password));

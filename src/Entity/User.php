@@ -143,7 +143,6 @@ class User implements
     DeletedBySettableInterface,
     PasswordAuthenticatedUserInterface
 {
-//    use CreatedUpdatedDeletedAtAndByTrait;
     use CreatedAtAccessorsTrait;
     use UpdatedAtAndByAccessorsTrait;
     use DeletedAtAndByAccessorsTrait;
@@ -151,7 +150,7 @@ class User implements
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['users:read'])]
+    #[Groups(['users:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 255)]
@@ -161,9 +160,23 @@ class User implements
     private ?string $email = null;
 
     #[ORM\Column(type: 'string', length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
+    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read'])]
+    private ?string $firstName = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    #[Assert\Length(max: 255)]
+    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read'])]
+    private ?string $lastName = null;
+
+    #[ORM\Column(type: 'string', length: 255)]
     #[Groups(['user:write', 'user:changePassword:write'])]
     #[Assert\Length(min: 6, minMessage: 'Password must be at least {{ limit }} characters long')]
     private ?string $password = null;
+
+    #[Groups(['user:changePassword:write'])]
+    private ?string $currentPassword = null;
 
     #[ORM\Column(type: 'array')]
     #[Groups(['user:read', 'user:create:write'])]
@@ -198,6 +211,18 @@ class User implements
     public function getPassword(): ?string
     {
         return $this->password;
+    }
+
+    public function getCurrentPassword(): ?string
+    {
+        return $this->currentPassword;
+    }
+
+    public function setCurrentPassword(?string $currentPassword): static
+    {
+        $this->currentPassword = $currentPassword;
+
+        return $this;
     }
 
     public function setPassword(string $password): self
@@ -285,6 +310,30 @@ class User implements
     public function setEmail(string $email): self
     {
         $this->email = mb_strtolower(trim($email));
+
+        return $this;
+    }
+
+    public function getFirstName(): ?string
+    {
+        return $this->firstName;
+    }
+
+    public function setFirstName(string $firstName): self
+    {
+        $this->firstName = $firstName;
+
+        return $this;
+    }
+
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
+    }
+
+    public function setLastName(?string $lastName): self
+    {
+        $this->lastName = $lastName;
 
         return $this;
     }

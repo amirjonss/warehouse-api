@@ -16,10 +16,12 @@ class UserFactory
     {
     }
 
-    public function create(string $email, string $password, array $roles): User
+    public function create(string $email, string $password, array $roles, string $firstName, ?string $lastName = null): User
     {
         $user = new User();
         $user->setEmail($email);
+        $user->setFirstName($firstName);
+        $user->setLastName($lastName);
         $user->setCreatedAt(new DateTime());
         $user->setPassword($this->passwordEncoder->hashPassword($user, $password));
         $user->setRoles($roles);

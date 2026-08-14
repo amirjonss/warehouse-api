@@ -52,9 +52,16 @@ class UserCreateAction extends AbstractController
 
         $plainPassword = $passwordGenerator->generate();
 
-        $user = $userFactory->create($data->getEmail(), $plainPassword, $roles);
+        $user = $userFactory->create($data->getEmail(), $plainPassword, $roles, $data->getFirstName(), $data->getLastName());
         $userManager->save($user, true);
 
-        return new UserCreatedDto($user->getId(), $user->getEmail(), $plainPassword, $user->getRoles());
+        return new UserCreatedDto(
+            $user->getId(),
+            $user->getEmail(),
+            $plainPassword,
+            $user->getRoles(),
+            $user->getFirstName(),
+            $user->getLastName()
+        );
     }
 }

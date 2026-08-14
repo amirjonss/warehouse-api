@@ -44,6 +44,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: "is_granted('ROLE_SALES')",
         )
     ],
+    normalizationContext: ['groups' => ['payments:read']],
     denormalizationContext: ['groups' => ['payments:write']]
 )]
 #[Assert\Expression(
@@ -55,62 +56,68 @@ class Payment
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['payments:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, unique: true)]
+    #[Groups(['payments:read'])]
     private ?string $number = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?DateTimeInterface $docDate = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Groups(['payments:read'])]
     private ?DateTimeInterface $postedAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?Client $client = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?string $amount = null;
 
     #[ORM\Column(enumType: Currency::class)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?Currency $currency = null;
 
     #[ORM\Column(nullable: true, enumType: RateKind::class)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?RateKind $rateKind = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?string $rate = null;
 
     #[ORM\Column(enumType: PaymentMethod::class)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?PaymentMethod $method = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['payments:read'])]
     private ?User $acceptedBy = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['payments:read'])]
     private ?DateTimeInterface $createdAt = null;
 
     #[ORM\Column(enumType: DocStatus::class)]
-    #[Groups(['payments-status:write'])]
+    #[Groups(['payments-status:write', 'payments:read'])]
     private ?DocStatus $status = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
-    #[Groups(['payments:write'])]
+    #[Groups(['payments:write', 'payments:read'])]
     private ?string $note = null;
 
     /**
      * @var Collection<int, PaymentAllocation>
      */
     #[ORM\OneToMany(targetEntity: PaymentAllocation::class, mappedBy: 'payment', orphanRemoval: true)]
+    #[Groups(['payments:read'])]
     private Collection $allocations;
 
     public function __construct()
