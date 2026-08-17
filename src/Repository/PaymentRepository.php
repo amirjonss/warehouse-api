@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Payment;
@@ -33,9 +35,6 @@ class PaymentRepository extends ServiceEntityRepository
     }
 
     /**
-     * Locks the given payments (deduplicated, ascending by id) with SELECT ... FOR UPDATE so a
-     * concurrent request can't process the same status transition twice. Always lock through
-     * this method — locking in any other order can deadlock two transactions against each other.
      *
      * @param Payment[] $payments
      */
@@ -52,11 +51,6 @@ class PaymentRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Reads the status directly from the DB (bypassing the identity map, which already holds
-     * this request's pending change) — call after lockPayments() to detect a concurrent
-     * change_status on the same payment.
-     */
     public function getCurrentStatus(int $id): string
     {
         return (string) $this->getEntityManager()->getConnection()->fetchOne(

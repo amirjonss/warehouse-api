@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Receipt;
@@ -33,10 +35,6 @@ class ReceiptRepository extends ServiceEntityRepository
     }
 
     /**
-     * Locks the given receipts (deduplicated, ascending by id) with SELECT ... FOR UPDATE so a
-     * concurrent request can't process the same status transition twice. Always lock through
-     * this method — locking in any other order can deadlock two transactions against each other.
-     *
      * @param Receipt[] $receipts
      */
     public function lockReceipts(array $receipts): void
@@ -52,11 +50,6 @@ class ReceiptRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Reads the status directly from the DB (bypassing the identity map, which already holds
-     * this request's pending change) — call after lockReceipts() to detect a concurrent
-     * change_status on the same receipt.
-     */
     public function getCurrentStatus(int $id): string
     {
         return (string) $this->getEntityManager()->getConnection()->fetchOne(

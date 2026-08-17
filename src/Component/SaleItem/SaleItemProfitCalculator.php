@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Component\SaleItem;
 
 use App\Component\Product\Enums\Currency;

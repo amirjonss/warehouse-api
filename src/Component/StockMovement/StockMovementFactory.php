@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Component\StockMovement;
 
 use App\Component\Core\Enums\DocumentType;

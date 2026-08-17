@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Component\Core\Enums\DocStatus;
@@ -108,11 +110,6 @@ class PaymentChangeStatusService
         }
     }
 
-    /**
-     * The whole payment amount must be allocated before posting — no partial
-     * allocation. We don't support advance/credit balances, so any unallocated
-     * remainder would otherwise post with no ledger trace of where it went.
-     */
     private function assertFullyAllocated(Payment $payment): void
     {
         $totalSpent = '0';

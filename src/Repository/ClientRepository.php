@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Client;
@@ -38,14 +40,6 @@ class ClientRepository extends ServiceEntityRepository
         ];
     }
 
-    /**
-     * Возраст долга = дата самой старой накладной, у которой в её валюте всё ещё
-     * есть непогашенный остаток (баланс по (sale, currency) из ленты Debt).
-     * Сумма долга не переносится частями между накладными: если старая накладная
-     * ещё не закрыта, именно её дата и определяет «с каких пор клиент должен».
-     *
-     * @return array<int, string> clientId -> oldestDebtDate (Y-m-d)
-     */
     public function getDebtAging(): array
     {
         $sql = <<<'SQL'

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Component\Profit;
 
 use App\Component\Core\Enums\ProfitEntryType;

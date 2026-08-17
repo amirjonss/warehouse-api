@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Component\Batch\BatchFactory;
@@ -120,11 +122,6 @@ class ReceiptChangeStatusService
                 }
             }
 
-            // Reverse via a compensating ledger entry rather than deleting the batch: the
-            // stock_movements table is append-only and is the source of truth for remainingQty
-            // (StockMovementFactory increments it on every movement, never recomputes it), and
-            // batch_id has onDelete: CASCADE, so removing the batch would silently wipe its
-            // history and leave remainingQty permanently overstated.
             foreach ($receipt->getItems() as $receiptItem) {
                 $batch = $receiptItem->getBatch();
                 if ($batch === null) {
@@ -175,9 +172,6 @@ class ReceiptChangeStatusService
     {
         $status = $this->entityManager->getUnitOfWork()->getOriginalEntityData($receipt)['status'] ?? null;
 
-        // For an entity that was persisted and flushed earlier in the same request/process
-        // (never reloaded via a fresh SELECT), Doctrine's original-data snapshot for an
-        // enum-typed column holds the raw DB scalar rather than the enum instance.
         return $status instanceof DocStatus ? $status : ($status !== null ? DocStatus::from($status) : null);
     }
 }

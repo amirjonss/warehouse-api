@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Writeoff;
@@ -52,11 +54,6 @@ class WriteoffRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Reads the status directly from the DB (bypassing the identity map, which already holds
-     * this request's pending change) — call after lockWriteoffs() to detect a concurrent
-     * change_status on the same writeoff.
-     */
     public function getCurrentStatus(int $id): string
     {
         return (string) $this->getEntityManager()->getConnection()->fetchOne(

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Sale;
@@ -33,11 +35,6 @@ class SaleRepository extends ServiceEntityRepository
     }
 
     /**
-     * Locks the given sales (deduplicated, ascending by id) with SELECT ... FOR UPDATE so a
-     * concurrent payment can't read/close the same debt balance before this one commits.
-     * Always lock through this method — locking in any other order can deadlock two
-     * transactions against each other.
-     *
      * @param Sale[] $sales
      */
     public function lockSales(array $sales): void
@@ -53,11 +50,6 @@ class SaleRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Reads the status directly from the DB (bypassing the identity map, which already holds
-     * this request's pending change), so it reflects whatever the last committed writer set —
-     * call after lockSales() to detect a concurrent change_status on the same sale.
-     */
     public function getCurrentStatus(int $id): string
     {
         return (string) $this->getEntityManager()->getConnection()->fetchOne(
