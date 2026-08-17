@@ -43,7 +43,8 @@ deploy-prod-job:
     stage: deploy
     only:
         - master
-    when: manual
+    environment:
+        name: production
     script:
         - eval $(ssh-agent -s)
         - echo "$DEPLOY_PRIVATE_SSH_KEY_PROD" | base64 -d | tr -d '\r' | ssh-add -
