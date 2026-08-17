@@ -8,12 +8,14 @@ use App\Component\SaleItem\SaleItemFactory;
 use App\Entity\SaleItem;
 use App\Entity\SaleItemAllocation;
 use App\Repository\BatchRepository;
+use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class SaleItemAllocationService
 {
     public function __construct(
         private BatchRepository $batchRepository,
+        private ProductRepository $productRepository,
         private SaleItemFactory $saleItemFactory,
         private SaleTotalsCalculator $saleTotalsCalculator,
         private EntityManagerInterface $entityManager,
@@ -42,9 +44,6 @@ class SaleItemAllocationService
             $saleItem->removeAllocation($existingAllocation);
         }
 
-        // Doctrine executes inserts before deletes within a single flush, so without this
-        // the re-allocation below could try to insert the same (sale_item_id, batch_id) pair
-        // the old allocation still occupies and hit the unique constraint.
         $this->entityManager->flush();
 
         $remainingToAllocate = $saleItem->getQuantity();
@@ -54,6 +53,7 @@ class SaleItemAllocationService
             ['receivedAt' => 'ASC', 'id' => 'ASC']
         );
 
+        $this->productRepository->lockProducts([$saleItem->getProduct()]);
         $this->batchRepository->lockBatches($batches);
 
         foreach ($batches as $batch) {

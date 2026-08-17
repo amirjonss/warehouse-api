@@ -41,13 +41,6 @@ class BatchRepository extends ServiceEntityRepository
         return bccomp($this->computeLiveRemainingQty($batch), $batch->getInitialQty(), 3) !== 0;
     }
 
-    /**
-     * Fresh SUM straight from the stock_movements ledger — the authoritative value for
-     * concurrency-safe checks. Batch::getRemainingQty() (denormalized column, kept in
-     * sync by StockMovementFactory) is fine for display, but callers gating a write
-     * against "how much is actually left" must call this after lockBatches() so they
-     * see any concurrently-committed change, not a value cached on this PHP object.
-     */
     public function computeLiveRemainingQty(Batch $batch): string
     {
         $result = $this->getEntityManager()->createQueryBuilder()
@@ -61,14 +54,6 @@ class BatchRepository extends ServiceEntityRepository
         return (string) $result;
     }
 
-    /**
-     * Locks the given batches (deduplicated, ascending by id) with SELECT ... FOR UPDATE
-     * so a concurrent transaction can't read/consume the same remaining quantity before
-     * this one commits. Callers must always lock through this method — locking in any
-     * other order can deadlock two transactions against each other.
-     *
-     * @param Batch[] $batches
-     */
     public function lockBatches(array $batches): void
     {
         $unique = [];
@@ -78,7 +63,7 @@ class BatchRepository extends ServiceEntityRepository
         ksort($unique);
 
         foreach ($unique as $batch) {
-            $this->getEntityManager()->lock($batch, LockMode::PESSIMISTIC_WRITE);
+            $this->getEntityManager()->refresh($batch, LockMode::PESSIMISTIC_WRITE);
         }
     }
 

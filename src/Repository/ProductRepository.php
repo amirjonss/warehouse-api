@@ -17,14 +17,6 @@ class ProductRepository extends ServiceEntityRepository
         parent::__construct($registry, Product::class);
     }
 
-    /**
-     * Locks the given products (deduplicated, ascending by id) with SELECT ... FOR UPDATE so
-     * two concurrent receipts for the same product can't generate the same batch number.
-     * Always lock through this method — locking in any other order can deadlock two
-     * transactions against each other.
-     *
-     * @param Product[] $products
-     */
     public function lockProducts(array $products): void
     {
         $unique = [];
@@ -34,17 +26,10 @@ class ProductRepository extends ServiceEntityRepository
         ksort($unique);
 
         foreach ($unique as $product) {
-            $this->getEntityManager()->lock($product, LockMode::PESSIMISTIC_WRITE);
+            $this->getEntityManager()->refresh($product, LockMode::PESSIMISTIC_WRITE);
         }
     }
 
-    /**
-     * Counts products in stock (remaining > 0) and low-on-stock (remaining <= min_stock,
-     * including out-of-stock) directly off the denormalized remaining_qty column, so the
-     * dashboard/stock summary tiles don't need to fetch and sum every product on the frontend.
-     *
-     * @return array{positions: int, low: int, outOfStock: int}
-     */
     public function getStockSummary(): array
     {
         $sql = <<<'SQL'
