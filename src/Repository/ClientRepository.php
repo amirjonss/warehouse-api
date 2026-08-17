@@ -37,4 +37,36 @@ class ClientRepository extends ServiceEntityRepository
             'totalDebtUzs' => (string) $row['total_debt_uzs'],
         ];
     }
+
+    /**
+     * Возраст долга = дата самой старой накладной, у которой в её валюте всё ещё
+     * есть непогашенный остаток (баланс по (sale, currency) из ленты Debt).
+     * Сумма долга не переносится частями между накладными: если старая накладная
+     * ещё не закрыта, именно её дата и определяет «с каких пор клиент должен».
+     *
+     * @return array<int, string> clientId -> oldestDebtDate (Y-m-d)
+     */
+    public function getDebtAging(): array
+    {
+        $sql = <<<'SQL'
+            SELECT client_id, MIN(doc_date) AS oldest_debt_date
+            FROM (
+                SELECT d.client_id, s.doc_date, d.sale_id, d.currency, SUM(d.amount) AS balance
+                FROM debts d
+                JOIN sales s ON s.id = d.sale_id
+                GROUP BY d.client_id, d.sale_id, s.doc_date, d.currency
+            ) open_sale_currency
+            WHERE balance > 0.01
+            GROUP BY client_id
+            SQL;
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative($sql);
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[(int) $row['client_id']] = (string) $row['oldest_debt_date'];
+        }
+
+        return $result;
+    }
 }

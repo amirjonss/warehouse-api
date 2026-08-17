@@ -12,7 +12,9 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Component\Client\Dtos\ClientDebtAgingDto;
 use App\Component\Client\Dtos\ClientDebtSummaryDto;
+use App\Controller\ClientDebtAgingAction;
 use App\Controller\ClientDebtSummaryAction;
 use App\Filter\HasDebtFilter;
 use App\Repository\ClientRepository;
@@ -33,6 +35,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
             output: ClientDebtSummaryDto::class,
             read: false,
             name: 'debtSummary',
+        ),
+        new Post(
+            uriTemplate: '/clients/debt-aging',
+            controller: ClientDebtAgingAction::class,
+            security: "is_granted('ROLE_SALES')",
+            input: false,
+            output: ClientDebtAgingDto::class,
+            read: false,
+            name: 'debtAging',
         ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_SALES')"),
