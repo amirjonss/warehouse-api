@@ -33,14 +33,8 @@ class Category
     #[ORM\Column(type: 'integer')]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'string', unique: true)]
-    private ?string $slug = null;
-
     #[ORM\Column(type: 'string')]
     private ?string $name = null;
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $sortOrder = null;
 
     /**
      * @var Collection<int, Product>
@@ -58,18 +52,6 @@ class Category
         return $this->id;
     }
 
-    public function getSlug(): ?string
-    {
-        return $this->slug;
-    }
-
-    public function setSlug(string $slug): self
-    {
-        $this->slug = $slug;
-
-        return $this;
-    }
-
     public function getName(): ?string
     {
         return $this->name;
@@ -78,18 +60,6 @@ class Category
     public function setName(string $name): self
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    public function getSortOrder(): ?int
-    {
-        return $this->sortOrder;
-    }
-
-    public function setSortOrder(?int $sortOrder): self
-    {
-        $this->sortOrder = $sortOrder;
 
         return $this;
     }

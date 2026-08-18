@@ -77,7 +77,7 @@ class SaleItem
     #[Groups(['sale:write', 'sale-item-update:write', 'sales:read', 'sale-item:read', 'profits:read'])]
     private ?Currency $currency = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
     #[Groups(['sale:write', 'sale-item-update:write', 'sale-item:read', 'profits:read'])]
     #[Assert\Positive]
     private ?string $rate = null;
@@ -168,7 +168,7 @@ class SaleItem
         return $this->rate;
     }
 
-    public function setRate(string $rate): static
+    public function setRate(?string $rate): static
     {
         $this->rate = $rate;
 

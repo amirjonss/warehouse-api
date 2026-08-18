@@ -59,7 +59,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     denormalizationContext: ['groups' => ['sales:write']],
     paginationItemsPerPage: 20,
 )]
-#[ApiFilter(SearchFilter::class, properties: ['customer' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['customer' => 'exact', 'number' => 'ipartial'])]
 #[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 class Sale
 {

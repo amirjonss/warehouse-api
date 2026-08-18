@@ -74,9 +74,6 @@ class Product implements DeletedAtSettableInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $sku = null;
-
-    #[ORM\Column(length: 255)]
     #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
     private ?string $name = null;
 
@@ -111,18 +108,6 @@ class Product implements DeletedAtSettableInterface
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getSku(): ?string
-    {
-        return $this->sku;
-    }
-
-    public function setSku(string $sku): static
-    {
-        $this->sku = $sku;
-
-        return $this;
     }
 
     public function getName(): ?string
