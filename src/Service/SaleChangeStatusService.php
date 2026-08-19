@@ -16,7 +16,9 @@ use App\Component\SaleItem\SaleItemProfitCalculator;
 use App\Component\StockMovement\StockMovementFactory;
 use App\Component\User\CurrentUser;
 use App\Entity\Sale;
+use App\Repository\BatchRepository;
 use App\Repository\PaymentAllocationRepository;
+use App\Repository\ProductRepository;
 use App\Repository\SaleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -26,6 +28,9 @@ class SaleChangeStatusService
         private SaleRepository $saleRepository,
         private SaleItemAllocationService $saleItemAllocationService,
         private PaymentAllocationRepository $paymentAllocationRepository,
+        private PaymentChangeStatusService $paymentChangeStatusService,
+        private ProductRepository $productRepository,
+        private BatchRepository $batchRepository,
         private StockMovementFactory $stockMovementFactory,
         private SaleItemProfitCalculator $saleItemProfitCalculator,
         private ProfitFactory $profitFactory,
@@ -88,7 +93,17 @@ class SaleChangeStatusService
         return $this->entityManager->wrapInTransaction(function () use ($sale, $previousStatus) {
             $this->saleRepository->lockSales([$sale]);
             $this->assertNotChangedConcurrently($sale, $previousStatus);
-            $this->assertNoActivePayments($sale);
+
+            // Cancel the payments that close this sale so the user doesn't have to unwind them by
+            // hand first. Done before the stock/product locks so payment rows are always taken in a
+            // consistent order relative to the sale lock we already hold.
+            $this->cancelLinkedPayments($sale);
+
+            // Lock the product before its batches (same order as posting) so the reversal's
+            // remaining_qty writes can't lose a concurrent update; without these locks the reversal
+            // repeats the very desync we fixed on the posting side.
+            $this->productRepository->lockProducts($this->collectProducts($sale));
+            $this->batchRepository->lockBatches($this->collectBatches($sale));
 
             $this->reverseMovements($sale);
             $this->reverseProfitEntries($sale);
@@ -107,13 +122,52 @@ class SaleChangeStatusService
         }
     }
 
-    private function assertNoActivePayments(Sale $sale): void
+    private function cancelLinkedPayments(Sale $sale): void
     {
-        if ($this->paymentAllocationRepository->hasPostedAllocationForSale($sale)) {
-            throw new SaleStatusTransitionException(
-                'Cannot cancel a sale that has posted payments allocated to it. Cancel the related payment(s) first.'
-            );
+        foreach ($this->paymentAllocationRepository->findPostedPaymentsForSale($sale) as $payment) {
+            foreach ($payment->getAllocations() as $allocation) {
+                $otherSale = $allocation->getSale();
+                if ($otherSale !== null && $otherSale->getId() !== $sale->getId()) {
+                    throw new SaleStatusTransitionException(sprintf(
+                        'Payment "%s" also closes other sales, so it was not cancelled automatically. '
+                        . 'Cancel that payment manually, then cancel this sale.',
+                        $payment->getNumber()
+                    ));
+                }
+            }
+
+            $this->paymentChangeStatusService->cancelPosted($payment);
         }
+    }
+
+    /**
+     * @return \App\Entity\Product[]
+     */
+    private function collectProducts(Sale $sale): array
+    {
+        $products = [];
+        foreach ($sale->getItems() as $saleItem) {
+            $products[] = $saleItem->getProduct();
+        }
+
+        return $products;
+    }
+
+    /**
+     * @return \App\Entity\Batch[]
+     */
+    private function collectBatches(Sale $sale): array
+    {
+        $batches = [];
+        foreach ($sale->getItems() as $saleItem) {
+            foreach ($saleItem->getAllocations() as $allocation) {
+                if ($allocation->getBatch() !== null) {
+                    $batches[] = $allocation->getBatch();
+                }
+            }
+        }
+
+        return $batches;
     }
 
     private function recordOutMovements(Sale $sale): void

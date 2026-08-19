@@ -110,6 +110,7 @@ class ReceiptChangeStatusService
             $this->receiptRepository->lockReceipts([$receipt]);
             $this->assertNotChangedConcurrently($receipt, $previousStatus);
 
+            $this->productRepository->lockProducts($this->collectProducts($receipt));
             $this->batchRepository->lockBatches($this->collectBatches($receipt));
 
             foreach ($receipt->getItems() as $receiptItem) {

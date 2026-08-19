@@ -30,8 +30,8 @@ class ReceiptFactory
             ->setSupplier($supplier)
             ->setDocDate($docDate ?? new DateTime())
             ->setCreatedAt(new DateTime())
-            ->setTotalUsd(0)
-            ->setTotalUzs(0)
+            ->setTotalUsd('0')
+            ->setTotalUzs('0')
             ->setStatus(DocStatus::DRAFT);
 
         return $receipt;

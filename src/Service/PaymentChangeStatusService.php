@@ -84,6 +84,18 @@ class PaymentChangeStatusService
         });
     }
 
+    public function cancelPosted(Payment $payment): void
+    {
+        $this->paymentRepository->lockPayments([$payment]);
+
+        if ($this->paymentRepository->getCurrentStatus($payment->getId()) !== DocStatus::POSTED->value) {
+            return;
+        }
+
+        $this->reverseDebtEntries($payment);
+        $payment->setStatus(DocStatus::CANCELLED);
+    }
+
     private function assertNotChangedConcurrently(Payment $payment, ?DocStatus $expectedStatus): void
     {
         if ($expectedStatus !== null && $this->paymentRepository->getCurrentStatus($payment->getId()) !== $expectedStatus->value) {

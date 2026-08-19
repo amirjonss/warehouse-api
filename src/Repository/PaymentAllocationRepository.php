@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Component\Core\Enums\DocStatus;
+use App\Entity\Payment;
 use App\Entity\PaymentAllocation;
 use App\Entity\Sale;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -23,18 +24,24 @@ class PaymentAllocationRepository extends ServiceEntityRepository
         parent::__construct($registry, PaymentAllocation::class);
     }
 
-    public function hasPostedAllocationForSale(Sale $sale): bool
+    /**
+     * The distinct posted payments that have an allocation closing the given sale, so a sale
+     * cancellation can unwind them automatically.
+     *
+     * @return Payment[]
+     */
+    public function findPostedPaymentsForSale(Sale $sale): array
     {
-        $count = $this->createQueryBuilder('pa')
-            ->select('COUNT(pa.id)')
-            ->join('pa.payment', 'p')
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('p')
+            ->distinct()
+            ->from(Payment::class, 'p')
+            ->innerJoin('p.allocations', 'pa')
             ->andWhere('pa.sale = :sale')
             ->andWhere('p.status = :status')
             ->setParameter('sale', $sale)
             ->setParameter('status', DocStatus::POSTED)
             ->getQuery()
-            ->getSingleScalarResult();
-
-        return (int) $count > 0;
+            ->getResult();
     }
 }
