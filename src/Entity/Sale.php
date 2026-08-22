@@ -8,6 +8,7 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -19,6 +20,8 @@ use App\Controller\SaleChangeStatusAction;
 use App\Controller\SaleCreateAction;
 use App\Controller\SaleDeleteAction;
 use App\Repository\SaleRepository;
+use App\State\SaleCollectionOutstandingProvider;
+use App\State\SaleItemOutstandingProvider;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -32,6 +35,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     operations: [
         new GetCollection(
             security: "is_granted('ROLE_SALES')",
+            provider: SaleCollectionOutstandingProvider::class,
             parameters: [
                 'docDate' => new QueryParameter(
                     filter: new DateFilter(),
@@ -39,7 +43,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
                 ),
             ]
         ),
-        new Get(security: "is_granted('ROLE_SALES')"),
+        new Get(
+            security: "is_granted('ROLE_SALES')",
+            provider: SaleItemOutstandingProvider::class,
+        ),
         new Post(
             controller: SaleCreateAction::class,
             security: "is_granted('ROLE_SALES')",
@@ -117,6 +124,14 @@ class Sale
     #[ORM\OneToMany(targetEntity: SaleItem::class, mappedBy: 'sale', orphanRemoval: true)]
     #[Groups(['sales:read'])]
     private Collection $items;
+
+    #[ApiProperty(writable: false)]
+    #[Groups(['sales:read'])]
+    private ?string $outstandingUsd = null;
+
+    #[ApiProperty(writable: false)]
+    #[Groups(['sales:read'])]
+    private ?string $outstandingUzs = null;
 
     public function __construct()
     {
@@ -273,6 +288,30 @@ class Sale
                 $item->setSale(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getOutstandingUsd(): ?string
+    {
+        return $this->outstandingUsd;
+    }
+
+    public function setOutstandingUsd(?string $outstandingUsd): static
+    {
+        $this->outstandingUsd = $outstandingUsd;
+
+        return $this;
+    }
+
+    public function getOutstandingUzs(): ?string
+    {
+        return $this->outstandingUzs;
+    }
+
+    public function setOutstandingUzs(?string $outstandingUzs): static
+    {
+        $this->outstandingUzs = $outstandingUzs;
 
         return $this;
     }

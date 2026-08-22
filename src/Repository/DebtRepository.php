@@ -49,6 +49,36 @@ class DebtRepository extends ServiceEntityRepository
     }
 
     /**
+     * Остатки долга по нескольким продажам одним запросом.
+     *
+     * @param int[] $saleIds
+     * @return array<int, array<string, string>> saleId => [код валюты => баланс]
+     */
+    public function getBalancesForSales(array $saleIds): array
+    {
+        if ($saleIds === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('d')
+            ->select('IDENTITY(d.sale) AS saleId', 'd.currency AS currency', 'SUM(d.amount) AS total')
+            ->andWhere('d.sale IN (:ids)')
+            ->setParameter('ids', $saleIds)
+            ->groupBy('d.sale', 'd.currency')
+            ->getQuery()
+            ->getResult();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $currency = $row['currency'] instanceof Currency ? $row['currency']->value : (string) $row['currency'];
+            $result[(int) $row['saleId']][$currency] = (string) $row['total'];
+        }
+
+        return $result;
+    }
+
+    /**
      * Непогашенные продажи клиента в заданной валюте, от старых к новым.
      *
      * @return array<int, array{sale: Sale, balance: string}>
