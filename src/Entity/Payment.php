@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -57,6 +60,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['payments:read']],
     denormalizationContext: ['groups' => ['payments:write']]
 )]
+#[ApiFilter(SearchFilter::class, properties: ['client' => 'exact'])]
+#[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 #[Assert\Expression(
     '(this.getRate() === null) === (this.getRateKind() === null)',
     message: 'rate and rateKind must be filled together',
