@@ -13,7 +13,6 @@ use App\Repository\SaleItemAllocationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SaleItemAllocationRepository::class)]
 #[ORM\Table(name: 'sale_item_allocations')]
@@ -23,10 +22,6 @@ use Symfony\Component\Validator\Constraints as Assert;
         new GetCollection(security: "is_granted('ROLE_SALES')"),
         new Get(security: "is_granted('ROLE_SALES')"),
     ],
-)]
-#[Assert\Expression(
-    'this.getCostCurrency() === null || this.getCostCurrency().value !== "UZS" || this.getCostRate() === "1"',
-    message: 'costRate must be 1 for a UZS batch',
 )]
 class SaleItemAllocation
 {
@@ -56,7 +51,7 @@ class SaleItemAllocation
     #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?Currency $costCurrency = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
     #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     private ?string $costRate = null;
 
@@ -130,7 +125,7 @@ class SaleItemAllocation
         return $this->costRate;
     }
 
-    public function setCostRate(string $costRate): static
+    public function setCostRate(?string $costRate): static
     {
         $this->costRate = $costRate;
 

@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Component\Sale\Exceptions\InsufficientBatchQuantityException;
 use App\Component\Sale\SaleTotalsCalculator;
+use App\Component\SaleItem\Exceptions\MissingSaleRateException;
 use App\Component\SaleItem\SaleItemFactory;
 use App\Entity\SaleItem;
 use App\Entity\SaleItemAllocation;
@@ -92,6 +93,26 @@ class SaleItemAllocationService
                 $saleItem->getProduct()->getName(),
                 $remainingToAllocate
             ));
+        }
+
+        $this->assertRateProvidedForCrossCurrency($saleItem);
+    }
+
+    private function assertRateProvidedForCrossCurrency(SaleItem $saleItem): void
+    {
+        if ($saleItem->getRate() !== null) {
+            return;
+        }
+
+        foreach ($saleItem->getAllocations() as $allocation) {
+            if ($saleItem->getCurrency() !== $allocation->getCostCurrency()) {
+                throw new MissingSaleRateException(sprintf(
+                    'Товар «%s» продан в валюте %s, а закуплен в %s — укажите курс в позиции продажи.',
+                    $saleItem->getProduct()->getName(),
+                    $saleItem->getCurrency()->value,
+                    $allocation->getCostCurrency()->value
+                ));
+            }
         }
     }
 }

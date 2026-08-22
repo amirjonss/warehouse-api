@@ -17,7 +17,6 @@ use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BatchRepository::class)]
 #[ORM\Table(name: 'batches')]
@@ -30,11 +29,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['batch:read']],
     paginationItemsPerPage: 20,
 )]
-#[Assert\Expression(
-    'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRateSell() === "1"',
-    message: 'rateSell must be 1 for a UZS batch',
-)]
-#[ApiFilter(SearchFilter::class, properties: ['product' => 'exact', 'product.name' => 'ipartial'])]
+#[ApiFilter(SearchFilter::class, properties: ['product' => 'exact', 'product.name' => 'ipartial', 'receipt.status' => 'exact'])]
 #[ApiFilter(OrderFilter::class, properties: ['receivedAt', 'id'])]
 class Batch
 {
@@ -62,14 +57,14 @@ class Batch
     private ?string $initialQty = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[Groups('batch:read')]
+    #[Groups(['batch:read', 'writeoffs:read'])]
     private ?string $purchasePrice = null;
 
     #[ORM\Column(enumType: Currency::class)]
-    #[Groups('batch:read')]
+    #[Groups(['batch:read', 'writeoffs:read'])]
     private ?Currency $currency = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
     #[Groups('batch:read')]
     private ?string $rateSell = null;
 
@@ -170,7 +165,7 @@ class Batch
         return $this->rateSell;
     }
 
-    public function setRateSell(string $rateSell): static
+    public function setRateSell(?string $rateSell): static
     {
         $this->rateSell = $rateSell;
 

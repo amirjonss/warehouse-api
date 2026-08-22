@@ -117,7 +117,7 @@ class ReceiptChangeStatusService
                 $batch = $receiptItem->getBatch();
                 if ($batch !== null && $this->batchRepository->isUsed($batch)) {
                     throw new ReceiptStatusTransitionException(sprintf(
-                        'Batch "%s" is already used and the receipt cannot be cancelled.',
+                        'Партия «%s» уже использована в продаже или списании — приход нельзя отменить.',
                         $batch->getNumber()
                     ));
                 }

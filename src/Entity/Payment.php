@@ -13,6 +13,7 @@ use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\PaymentMethod;
 use App\Component\Core\Enums\RateKind;
 use App\Component\Product\Enums\Currency;
+use App\Controller\PaymentAutoAllocateAction;
 use App\Controller\PaymentChangeStatusAction;
 use App\Controller\PaymentCreateAction;
 use App\Controller\PaymentDeleteAction;
@@ -40,6 +41,13 @@ use Symfony\Component\Validator\Constraints as Assert;
             controller: PaymentChangeStatusAction::class,
             denormalizationContext: ['groups' => ['payments-status:write']],
             security: "is_granted('ROLE_SALES')",
+        ),
+        new Post(
+            uriTemplate: '/payments/{id}/auto_allocate',
+            controller: PaymentAutoAllocateAction::class,
+            security: "is_granted('ROLE_SALES')",
+            deserialize: false,
+            validate: false,
         ),
         new Delete(
             controller: PaymentDeleteAction::class,

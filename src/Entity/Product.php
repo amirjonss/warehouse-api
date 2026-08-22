@@ -74,7 +74,7 @@ class Product implements DeletedAtSettableInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
+    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'sale-item:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(inversedBy: 'products')]
@@ -85,6 +85,7 @@ class Product implements DeletedAtSettableInterface
     private ?Currency $currency = null;
 
     #[ORM\Column(enumType: UnitCode::class)]
+    #[Groups(['sale-item:read'])]
     private ?UnitCode $unit = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]

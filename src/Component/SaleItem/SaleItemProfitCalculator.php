@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Component\SaleItem;
 
 use App\Component\Product\Enums\Currency;
+use App\Component\SaleItem\Exceptions\MissingSaleRateException;
 use App\Entity\SaleItemAllocation;
 
 class SaleItemProfitCalculator
@@ -25,6 +26,15 @@ class SaleItemProfitCalculator
 
         if ($saleItem->getCurrency() === $allocation->getCostCurrency()) {
             return $revenue;
+        }
+
+        if ($saleItem->getRate() === null) {
+            throw new MissingSaleRateException(sprintf(
+                'Товар «%s» продан в валюте %s, а закуплен в %s — укажите курс в позиции продажи.',
+                $saleItem->getProduct()->getName(),
+                $saleItem->getCurrency()->value,
+                $allocation->getCostCurrency()->value
+            ));
         }
 
         if ($allocation->getCostCurrency() === Currency::USD) {

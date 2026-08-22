@@ -44,16 +44,12 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['receipt-item:read']],
     denormalizationContext: ['groups' => ['receipt-item:write']],
 )]
-#[Assert\Expression(
-    'this.getCurrency() === null || this.getCurrency().value !== "UZS" || this.getRate() === "1"',
-    message: 'rate must be 1 for a UZS receipt item',
-)]
 class ReceiptItem
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['receipts:read'])]
+    #[Groups(['receipts:read', 'receipt-item:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'items')]
@@ -85,7 +81,7 @@ class ReceiptItem
     #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     private ?Currency $currency = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
     #[Groups(['receipt-item:write', 'receipt-item-update:write', 'receipt-item:read', 'receipts:read'])]
     #[Assert\Positive]
     private ?string $rate = null;
@@ -176,7 +172,7 @@ class ReceiptItem
         return $this->rate;
     }
 
-    public function setRate(string $rate): static
+    public function setRate(?string $rate): static
     {
         $this->rate = $rate;
 
