@@ -28,6 +28,7 @@ use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 #[ApiResource(
@@ -74,21 +75,28 @@ class Product implements DeletedAtSettableInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'sale-item:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Assert\NotNull]
     private ?Category $category = null;
 
     #[ORM\Column(enumType: Currency::class)]
+    #[Assert\NotNull]
     private ?Currency $currency = null;
 
     #[ORM\Column(enumType: UnitCode::class)]
     #[Groups(['sale-item:read'])]
+    #[Assert\NotNull]
     private ?UnitCode $unit = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
+    #[Assert\NotNull]
+    #[Assert\PositiveOrZero]
     private ?string $minStock = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2, nullable: true)]
@@ -98,6 +106,7 @@ class Product implements DeletedAtSettableInterface
     private ?string $priceUzs = null;
 
     #[ORM\Column]
+    #[Assert\NotNull]
     private ?bool $isActive = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]

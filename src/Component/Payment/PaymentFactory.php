@@ -16,7 +16,7 @@ use DateTime;
 
 class PaymentFactory
 {
-    private const NUMBER_PREFIX = 'ОП-';
+    private const NUMBER_PREFIX = 'PY-';
     private const NUMBER_LENGTH = 5;
 
     public function __construct(private readonly PaymentRepository $paymentRepository)

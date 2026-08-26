@@ -26,3 +26,8 @@
 !/docker/mailserver/dkim/
 !/docker/mailserver/dkim/.gitkeep
 !/docker/mailserver/init-dkim.sh
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###

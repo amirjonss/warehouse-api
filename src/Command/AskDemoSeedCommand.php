@@ -21,7 +21,6 @@ use App\Entity\Sale;
 use App\Entity\SaleItem;
 use App\Entity\Supplier;
 use App\Entity\User;
-use App\Entity\Writeoff;
 use App\Entity\WriteoffItem;
 use App\Repository\BatchRepository;
 use App\Repository\StockMovementRepository;
@@ -58,64 +57,64 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 class AskDemoSeedCommand extends Command
 {
     private const CATEGORY_DEFS = [
-        ['slug' => 'margarine-bakery', 'name' => 'Маргарин для выпечки', 'sku' => 'MRB', 'currency' => Currency::USD,
+        ['name' => 'Маргарин для выпечки', 'currency' => Currency::USD,
             'variants' => ['82% ведро 5кг', '82% ведро 10кг', '80% ведро 10кг', '72% ведро 10кг', '72% ведро 20кг', '82% брикет 1кг', '80% брикет 1кг', 'Люкс 84% ведро 10кг', 'Стандарт 72% ведро 20кг', 'Эконом 60% ведро 10кг'],
             'priceMin' => 1.5, 'priceMax' => 2.6, 'minStock' => [50, 300]],
-        ['slug' => 'margarine-block', 'name' => 'Маргарин кусковой', 'sku' => 'MRK', 'currency' => Currency::USD,
+        ['name' => 'Маргарин кусковой', 'currency' => Currency::USD,
             'variants' => ['82% брикет 200г', '82% брикет 400г', '72% брикет 200г', 'Крестьянский 400г', 'Сливочный вкус 200г', 'Молочный 400г', 'Люкс 250г', 'Экстра 200г', 'Домашний 400г', 'Праздничный 250г'],
             'priceMin' => 1.7, 'priceMax' => 2.8, 'minStock' => [30, 150]],
-        ['slug' => 'margarine-bucket', 'name' => 'Маргарин в вёдрах', 'sku' => 'MRV', 'currency' => Currency::USD,
+        ['name' => 'Маргарин в вёдрах', 'currency' => Currency::USD,
             'variants' => ['для слоёного теста 10кг', 'для песочного теста 10кг', 'для крема 10кг', 'кондитерский 15кг', 'кондитерский 20кг', 'для вафель 10кг', 'жаропрочный 10кг', 'для пряников 10кг', 'универсальный 15кг', 'профессиональный 20кг'],
             'priceMin' => 1.8, 'priceMax' => 3.0, 'minStock' => [40, 200]],
-        ['slug' => 'margarine-premium', 'name' => 'Маргарин премиум', 'sku' => 'MRP', 'currency' => Currency::USD,
+        ['name' => 'Маргарин премиум', 'currency' => Currency::USD,
             'variants' => ['Voliy 82%', 'Alpen Gold 82%', 'Золотой стандарт 84%', 'Деревенский 80%', 'Фермерский 82%', 'Nordica 82%', 'Baltic 80%', 'Milk Line 72%', 'Cream Style 82%', 'Gold Line 84%'],
             'priceMin' => 2.0, 'priceMax' => 3.4, 'minStock' => [20, 120]],
-        ['slug' => 'milk-gost', 'name' => 'Молоко сгущённое ГОСТ', 'sku' => 'MLG', 'currency' => Currency::USD,
+        ['name' => 'Молоко сгущённое ГОСТ', 'currency' => Currency::USD,
             'variants' => ['8.5% ж/б 380г', '8.5% ж/б 400г', '8.5% дой-пак 300г', '8.5% ведро 5кг', '8.5% ведро 10кг', '9% ж/б 380г', '9% ведро 5кг', '7.5% ж/б 380г', '8.5% туба 300г', '8.5% ведро 20кг'],
             'priceMin' => 1.2, 'priceMax' => 2.1, 'minStock' => [30, 200]],
-        ['slug' => 'milk-boiled', 'name' => 'Молоко сгущённое варёное', 'sku' => 'MLV', 'currency' => Currency::USD,
+        ['name' => 'Молоко сгущённое варёное', 'currency' => Currency::USD,
             'variants' => ['ж/б 380г', 'ж/б 400г', 'дой-пак 300г', 'ведро 5кг', 'ведро 10кг', 'карамель ж/б 380г', 'с какао ж/б 380г', 'ведро 20кг', 'туба 300г', 'классическое ж/б 400г'],
             'priceMin' => 1.3, 'priceMax' => 2.2, 'minStock' => [20, 150]],
-        ['slug' => 'cream-condensed', 'name' => 'Сливки сгущённые', 'sku' => 'SLV', 'currency' => Currency::USD,
+        ['name' => 'Сливки сгущённые', 'currency' => Currency::USD,
             'variants' => ['19% ж/б 380г', '19% ведро 5кг', '10% ж/б 380г', '10% ведро 5кг', '19% ведро 10кг', 'ванильные ж/б 380г', '19% дой-пак 300г', '10% дой-пак 300г', '19% ведро 20кг', 'классические ж/б 400г'],
             'priceMin' => 1.4, 'priceMax' => 2.3, 'minStock' => [15, 100]],
-        ['slug' => 'milk-powder', 'name' => 'Молоко сухое', 'sku' => 'MLS', 'currency' => Currency::USD,
+        ['name' => 'Молоко сухое', 'currency' => Currency::USD,
             'variants' => ['26% мешок 25кг', '26% мешок 10кг', '1.5% мешок 25кг', 'цельное мешок 25кг', 'обезжиренное мешок 25кг', '26% пакет 1кг', '15% мешок 25кг', 'цельное мешок 10кг', '26% мешок 20кг', 'обезжиренное мешок 20кг'],
             'priceMin' => 2.5, 'priceMax' => 4.0, 'minStock' => [20, 150]],
-        ['slug' => 'filling-fruit', 'name' => 'Начинка фруктовая', 'sku' => 'NCF', 'currency' => Currency::USD,
+        ['name' => 'Начинка фруктовая', 'currency' => Currency::USD,
             'variants' => ['Вишня ведро 10кг', 'Абрикос ведро 10кг', 'Яблоко ведро 10кг', 'Клубника ведро 10кг', 'Персик ведро 10кг', 'Малина ведро 10кг', 'Слива ведро 10кг', 'Черника ведро 10кг', 'Курага ведро 10кг', 'Апельсин ведро 10кг'],
             'priceMin' => 2.0, 'priceMax' => 4.5, 'minStock' => [20, 120]],
-        ['slug' => 'filling-chocolate', 'name' => 'Начинка шоколадная', 'sku' => 'NCC', 'currency' => Currency::USD,
+        ['name' => 'Начинка шоколадная', 'currency' => Currency::USD,
             'variants' => ['Шоколадная ведро 10кг', 'Какао-ореховая ведро 10кг', 'Тёмный шоколад ведро 10кг', 'Молочный шоколад ведро 10кг', 'Шоколад-вишня ведро 10кг', 'Белый шоколад ведро 10кг', 'Шоколад-апельсин ведро 10кг', 'Пралине ведро 10кг', 'Трюфель ведро 10кг', 'Брауни ведро 10кг'],
             'priceMin' => 2.5, 'priceMax' => 5.0, 'minStock' => [15, 100]],
-        ['slug' => 'filling-nut', 'name' => 'Начинка ореховая', 'sku' => 'NCO', 'currency' => Currency::USD,
+        ['name' => 'Начинка ореховая', 'currency' => Currency::USD,
             'variants' => ['Фундук ведро 10кг', 'Арахис ведро 10кг', 'Грецкий орех ведро 10кг', 'Миндаль ведро 10кг', 'Мак ведро 10кг', 'Кунжут ведро 10кг', 'Фисташка ведро 10кг', 'Кешью ведро 10кг', 'Смесь орехов ведро 10кг', 'Кокос ведро 10кг'],
             'priceMin' => 3.0, 'priceMax' => 6.0, 'minStock' => [10, 80]],
-        ['slug' => 'oil-refined', 'name' => 'Масло подсолнечное рафинированное', 'sku' => 'OLR', 'currency' => Currency::UZS,
+        ['name' => 'Масло подсолнечное рафинированное', 'currency' => Currency::UZS,
             'variants' => ['дезодорированное 1л', 'дезодорированное 5л', 'дезодорированное 10л', 'дезодорированное 20л', 'премиум 1л', 'премиум 5л', 'для фритюра 20л', 'для фритюра 10л', 'экстра 1л', 'экстра 5л'],
             'priceMin' => 11000, 'priceMax' => 17000, 'minStock' => [50, 300]],
-        ['slug' => 'oil-unrefined', 'name' => 'Масло подсолнечное нерафинированное', 'sku' => 'OLN', 'currency' => Currency::UZS,
+        ['name' => 'Масло подсолнечное нерафинированное', 'currency' => Currency::UZS,
             'variants' => ['холодного отжима 1л', 'холодного отжима 5л', 'ароматное 1л', 'ароматное 5л', 'деревенское 1л', 'деревенское 10л', 'фермерское 5л', 'традиционное 1л', 'традиционное 10л', 'домашнее 5л'],
             'priceMin' => 12000, 'priceMax' => 18000, 'minStock' => [30, 200]],
-        ['slug' => 'oil-bottled', 'name' => 'Масло подсолнечное фасованное', 'sku' => 'OLB', 'currency' => Currency::UZS,
+        ['name' => 'Масло подсолнечное фасованное', 'currency' => Currency::UZS,
             'variants' => ['ПЭТ 0.5л', 'ПЭТ 1л', 'ПЭТ 2л', 'стекло 1л', 'канистра 3л', 'канистра 5л', 'ПЭТ 1.8л', 'канистра 10л', 'дой-пак 1л', 'ПЭТ 3л'],
             'priceMin' => 6000, 'priceMax' => 32000, 'minStock' => [40, 250]],
-        ['slug' => 'mayo-provencal', 'name' => 'Майонез Провансаль', 'sku' => 'MYP', 'currency' => Currency::UZS,
+        ['name' => 'Майонез Провансаль', 'currency' => Currency::UZS,
             'variants' => ['67% дой-пак 200г', '67% дой-пак 400г', '67% ведро 1кг', '67% ведро 5кг', '67% ведро 10кг', '67% стакан 200г', '72% дой-пак 400г', '67% ведро 20кг', '67% канистра 5кг', '72% ведро 10кг'],
             'priceMin' => 9000, 'priceMax' => 19000, 'minStock' => [40, 250]],
-        ['slug' => 'mayo-light', 'name' => 'Майонез лёгкий', 'sku' => 'MYL', 'currency' => Currency::UZS,
+        ['name' => 'Майонез лёгкий', 'currency' => Currency::UZS,
             'variants' => ['30% дой-пак 200г', '30% дой-пак 400г', '40% дой-пак 400г', '30% ведро 1кг', '30% ведро 5кг', '50% дой-пак 400г', '40% ведро 5кг', '30% стакан 200г', '40% ведро 1кг', '50% ведро 5кг'],
             'priceMin' => 8000, 'priceMax' => 16000, 'minStock' => [20, 150]],
-        ['slug' => 'mayo-bucket', 'name' => 'Майонез в вёдрах', 'sku' => 'MYV', 'currency' => Currency::UZS,
+        ['name' => 'Майонез в вёдрах', 'currency' => Currency::UZS,
             'variants' => ['67% ведро 10кг', '67% ведро 15кг', '67% ведро 20кг', 'для фастфуда 10кг', 'для фастфуда 20кг', 'кетчуп-майонез 10кг', 'чесночный 10кг', 'острый 10кг', 'оливковый 10кг', 'классический 20кг'],
             'priceMin' => 9500, 'priceMax' => 18000, 'minStock' => [15, 100]],
-        ['slug' => 'cocoa-powder', 'name' => 'Какао-порошок', 'sku' => 'CCP', 'currency' => Currency::USD,
+        ['name' => 'Какао-порошок', 'currency' => Currency::USD,
             'variants' => ['10-12% мешок 25кг', '10-12% пакет 1кг', '10-12% пакет 5кг', '20-22% мешок 25кг', '20-22% пакет 1кг', 'натуральный мешок 25кг', 'натуральный пакет 1кг', '8-10% мешок 25кг', '8-10% пакет 1кг', '10-12% мешок 10кг'],
             'priceMin' => 3.0, 'priceMax' => 6.5, 'minStock' => [10, 100]],
-        ['slug' => 'cocoa-alkalized', 'name' => 'Какао алкализованное', 'sku' => 'CCA', 'currency' => Currency::USD,
+        ['name' => 'Какао алкализованное', 'currency' => Currency::USD,
             'variants' => ['10-12% тёмное мешок 25кг', '10-12% тёмное пакет 1кг', 'красное мешок 25кг', 'красное пакет 1кг', 'чёрное мешок 25кг', 'чёрное пакет 1кг', '20-22% тёмное мешок 25кг', '20-22% тёмное пакет 1кг', 'экстра-тёмное мешок 25кг', 'экстра-тёмное пакет 1кг'],
             'priceMin' => 3.5, 'priceMax' => 7.0, 'minStock' => [10, 80]],
-        ['slug' => 'cocoa-butter', 'name' => 'Какао-масло', 'sku' => 'CCB', 'currency' => Currency::USD,
+        ['name' => 'Какао-масло', 'currency' => Currency::USD,
             'variants' => ['натуральное блок 1кг', 'натуральное блок 5кг', 'дезодорированное блок 1кг', 'дезодорированное блок 5кг', 'прессованное блок 1кг', 'прессованное мешок 25кг', 'рафинированное блок 5кг', 'капли 1кг', 'капли 5кг', 'блок 25кг'],
             'priceMin' => 6.0, 'priceMax' => 12.0, 'minStock' => [5, 50]],
     ];
@@ -258,7 +257,7 @@ class AskDemoSeedCommand extends Command
 
         foreach (array_slice($defs, 0, $count) as $i => $def) {
             $category = new Category();
-            $category->setSlug($def['slug'])->setName($def['name'])->setSortOrder($i + 1);
+            $category->setName($def['name']);
             $this->entityManager->persist($category);
             $categories[] = $category;
         }
@@ -294,7 +293,6 @@ class AskDemoSeedCommand extends Command
 
                 $product = new Product();
                 $product
-                    ->setSku(sprintf('%s-%03d', $def['sku'], $i + 1))
                     ->setName(trim($def['name'] . ' ' . $variant . $suffix))
                     ->setCategory($category)
                     ->setCurrency($def['currency'])
@@ -302,9 +300,6 @@ class AskDemoSeedCommand extends Command
                     ->setMinStock((string) random_int($def['minStock'][0], $def['minStock'][1]) . '.000')
                     ->setIsActive(true);
 
-                // Product no longer stores a purchase price (real cost basis lives on
-                // Batch.purchasePrice, set per-receipt in addReceiptItem() below) — kept
-                // here only in-memory as the base value receipt prices jitter around.
                 $this->basePriceByProductObjectId[spl_object_id($product)] = $purchasePrice;
 
                 $salePrice = $this->markup($purchasePrice, $def['currency']);
@@ -328,7 +323,7 @@ class AskDemoSeedCommand extends Command
     private function categoryDefFor(Category $category): ?array
     {
         foreach (self::CATEGORY_DEFS as $def) {
-            if ($def['slug'] === $category->getSlug()) {
+            if ($def['name'] === $category->getName()) {
                 return $def;
             }
         }
@@ -649,10 +644,6 @@ class AskDemoSeedCommand extends Command
         return $result;
     }
 
-    /**
-     * Interpolates a gradually rising USD/UZS rate across the seeding window, plus noise —
-     * purely cosmetic realism for demo purposes, not tied to any real historical rate.
-     */
     private function rateForDate(DateTime $date, DateTime $windowStart, DateTime $windowEnd): string
     {
         $span = max(1, $windowStart->diff($windowEnd)->days);

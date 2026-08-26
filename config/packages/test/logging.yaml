@@ -1,0 +1,5 @@
+services:
+    # This project has no MonologBundle; Symfony's fallback logger prints to stderr, so the
+    # exceptions that negative tests trigger on purpose would flood the PHPUnit output.
+    logger:
+        class: Psr\Log\NullLogger

@@ -14,6 +14,7 @@ use App\Entity\Payment;
 use App\Repository\DebtRepository;
 use App\Repository\PaymentRepository;
 use App\Repository\SaleRepository;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
 class PaymentChangeStatusService
@@ -67,6 +68,7 @@ class PaymentChangeStatusService
 
             $this->assertNotExceedingDebt($payment);
             $this->recordDebtEntries($payment);
+            $payment->setPostedAt(new DateTime());
 
             return $payment;
         });

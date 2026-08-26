@@ -1,0 +1,9 @@
+framework:
+    cache:
+        pools:
+            api_platform.cache.metadata.resource_collection:
+                adapter: cache.adapter.array
+            api_platform.cache.metadata.resource:
+                adapter: cache.adapter.array
+            api_platform.cache.metadata.property:
+                adapter: cache.adapter.array

@@ -20,6 +20,7 @@ use App\Repository\BatchRepository;
 use App\Repository\PaymentAllocationRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SaleRepository;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
 class SaleChangeStatusService
@@ -83,6 +84,7 @@ class SaleChangeStatusService
             $this->recordOutMovements($sale);
             $this->recordProfitEntries($sale);
             $this->recordDebtEntries($sale);
+            $sale->setPostedAt(new DateTime());
 
             return $sale;
         });
@@ -94,14 +96,8 @@ class SaleChangeStatusService
             $this->saleRepository->lockSales([$sale]);
             $this->assertNotChangedConcurrently($sale, $previousStatus);
 
-            // Cancel the payments that close this sale so the user doesn't have to unwind them by
-            // hand first. Done before the stock/product locks so payment rows are always taken in a
-            // consistent order relative to the sale lock we already hold.
             $this->cancelLinkedPayments($sale);
 
-            // Lock the product before its batches (same order as posting) so the reversal's
-            // remaining_qty writes can't lose a concurrent update; without these locks the reversal
-            // repeats the very desync we fixed on the posting side.
             $this->productRepository->lockProducts($this->collectProducts($sale));
             $this->batchRepository->lockBatches($this->collectBatches($sale));
 

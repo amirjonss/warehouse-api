@@ -15,6 +15,7 @@ use App\Entity\Receipt;
 use App\Repository\BatchRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ReceiptRepository;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ReceiptChangeStatusService
@@ -89,6 +90,8 @@ class ReceiptChangeStatusService
                 );
                 $this->entityManager->persist($stockMovement);
             }
+
+            $receipt->setPostedAt(new DateTime());
 
             return $receipt;
         });
