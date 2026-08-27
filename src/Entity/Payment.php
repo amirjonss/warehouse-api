@@ -7,6 +7,7 @@ namespace App\Entity;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -127,6 +128,17 @@ class Payment
     #[ORM\Column(type: 'text', nullable: true)]
     #[Groups(['payments:write', 'payments:read'])]
     private ?string $note = null;
+
+    /**
+     * Смена, в которую попал платёж. Проставляется при проведении, а не при
+     * создании черновика: до проведения деньги ещё не приняты. Нужна и наличным
+     * (формируют остаток на руках), и карте с перечислением — те не создают
+     * обязательства, но входят в оборот смены.
+     */
+    #[ORM\ManyToOne]
+    #[ApiProperty(writable: false)]
+    #[Groups(['payments:read'])]
+    private ?CashSession $cashSession = null;
 
     /**
      * @var Collection<int, PaymentAllocation>
@@ -326,6 +338,18 @@ class Payment
                 $allocation->setPayment(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCashSession(): ?CashSession
+    {
+        return $this->cashSession;
+    }
+
+    public function setCashSession(?CashSession $cashSession): static
+    {
+        $this->cashSession = $cashSession;
 
         return $this;
     }

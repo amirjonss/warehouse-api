@@ -152,7 +152,7 @@ class User implements
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
-    #[Groups(['users:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read'])]
+    #[Groups(['users:read', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read', 'cash-session:read', 'cash-entry:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string', length: 255)]
@@ -164,12 +164,12 @@ class User implements
     #[ORM\Column(type: 'string', length: 255)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 255)]
-    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read'])]
+    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read', 'cash-session:read', 'cash-entry:read'])]
     private ?string $firstName = null;
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     #[Assert\Length(max: 255)]
-    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read'])]
+    #[Groups(['users:read', 'user:write', 'user:put:write', 'user:create:write', 'receipts:read', 'sales:read', 'writeoffs:read', 'payments:read', 'expenses:read', 'exchange-rates:read', 'cash-session:read', 'cash-entry:read'])]
     private ?string $lastName = null;
 
     #[ORM\Column(type: 'string', length: 255)]

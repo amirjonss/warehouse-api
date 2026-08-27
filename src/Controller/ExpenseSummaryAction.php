@@ -30,6 +30,8 @@ class ExpenseSummaryAction extends AbstractController
         $from = $request?->query->get('from');
         $to = $request?->query->get('to');
 
-        return new ExpenseSummaryDto($this->expenseRepository->getSummary($from, $to));
+        $summary = $this->expenseRepository->getSummary($from, $to);
+
+        return new ExpenseSummaryDto($summary['totalUsd'], $summary['totalUzs']);
     }
 }

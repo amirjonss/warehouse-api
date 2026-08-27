@@ -22,13 +22,21 @@ class ExpenseRepository extends ServiceEntityRepository
     }
 
     /**
+     * Расход живёт в двух валютах и складывать их нельзя, поэтому итог всегда пара
+     * чисел — как getSummary() у прибыли.
+     *
      * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
      * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     *
+     * @return array{totalUsd: string, totalUzs: string}
      */
-    public function getSummary(?string $from, ?string $to): string
+    public function getSummary(?string $from, ?string $to): array
     {
         $qb = $this->getEntityManager()->getConnection()->createQueryBuilder();
-        $qb->select('COALESCE(SUM(amount), 0) AS total_amount')->from('expenses');
+        $qb->select(
+            "COALESCE(SUM(amount) FILTER (WHERE currency = 'USD'), 0) AS total_usd",
+            "COALESCE(SUM(amount) FILTER (WHERE currency = 'UZS'), 0) AS total_uzs",
+        )->from('expenses');
 
         if ($from !== null) {
             $qb->andWhere('doc_date >= :from')->setParameter('from', $from);
@@ -39,21 +47,31 @@ class ExpenseRepository extends ServiceEntityRepository
 
         $row = $qb->executeQuery()->fetchAssociative();
 
-        return (string) $row['total_amount'];
+        return [
+            'totalUsd' => (string) $row['total_usd'],
+            'totalUzs' => (string) $row['total_uzs'],
+        ];
     }
 
     /**
      * Суммы расходов по дням за период — для столбчатой диаграммы одним запросом.
+     * Валюты разнесены по колонкам: столбик рисуется по сумовой части, долларовая
+     * показывается подписью, складывать их без курса нельзя.
      *
      * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
      * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
      *
-     * @return array<int, array{doc_date: string, total: string, count: string}>
+     * @return array<int, array{doc_date: string, total_usd: string, total_uzs: string, count: string}>
      */
     public function getDailyTotals(?string $from, ?string $to): array
     {
         $qb = $this->getEntityManager()->getConnection()->createQueryBuilder();
-        $qb->select('doc_date', 'SUM(amount) AS total', 'COUNT(*) AS count')
+        $qb->select(
+            'doc_date',
+            "COALESCE(SUM(amount) FILTER (WHERE currency = 'USD'), 0) AS total_usd",
+            "COALESCE(SUM(amount) FILTER (WHERE currency = 'UZS'), 0) AS total_uzs",
+            'COUNT(*) AS count',
+        )
             ->from('expenses')
             ->groupBy('doc_date')
             ->orderBy('doc_date');

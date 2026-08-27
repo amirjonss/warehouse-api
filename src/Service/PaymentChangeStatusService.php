@@ -23,6 +23,7 @@ class PaymentChangeStatusService
         private DebtFactory $debtFactory,
         private SaleRepository $saleRepository,
         private PaymentRepository $paymentRepository,
+        private CashCollectService $cashCollectService,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
@@ -67,6 +68,8 @@ class PaymentChangeStatusService
 
             $this->assertNotExceedingDebt($payment);
             $this->recordDebtEntries($payment);
+            // Долг клиента закрылся — теперь фиксируем, у кого оказались деньги.
+            $this->cashCollectService->record($payment);
 
             return $payment;
         });
@@ -79,6 +82,7 @@ class PaymentChangeStatusService
             $this->assertNotChangedConcurrently($payment, $previousStatus);
 
             $this->reverseDebtEntries($payment);
+            $this->cashCollectService->reverse($payment);
 
             return $payment;
         });
@@ -93,6 +97,7 @@ class PaymentChangeStatusService
         }
 
         $this->reverseDebtEntries($payment);
+        $this->cashCollectService->reverse($payment);
         $payment->setStatus(DocStatus::CANCELLED);
     }
 

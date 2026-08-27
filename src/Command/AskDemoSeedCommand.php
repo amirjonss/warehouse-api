@@ -256,9 +256,11 @@ class AskDemoSeedCommand extends Command
         $defs = self::CATEGORY_DEFS;
         $count = min($count, count($defs));
 
-        foreach (array_slice($defs, 0, $count) as $i => $def) {
+        // slug и порядок сортировки остались только ключами внутри CATEGORY_DEFS —
+        // в самой сущности этих полей больше нет.
+        foreach (array_slice($defs, 0, $count) as $def) {
             $category = new Category();
-            $category->setSlug($def['slug'])->setName($def['name'])->setSortOrder($i + 1);
+            $category->setName($def['name']);
             $this->entityManager->persist($category);
             $categories[] = $category;
         }
@@ -294,7 +296,6 @@ class AskDemoSeedCommand extends Command
 
                 $product = new Product();
                 $product
-                    ->setSku(sprintf('%s-%03d', $def['sku'], $i + 1))
                     ->setName(trim($def['name'] . ' ' . $variant . $suffix))
                     ->setCategory($category)
                     ->setCurrency($def['currency'])
@@ -328,7 +329,8 @@ class AskDemoSeedCommand extends Command
     private function categoryDefFor(Category $category): ?array
     {
         foreach (self::CATEGORY_DEFS as $def) {
-            if ($def['slug'] === $category->getSlug()) {
+            // Раньше сопоставляли по slug; поля больше нет, а имена в CATEGORY_DEFS уникальны.
+            if ($def['name'] === $category->getName()) {
                 return $def;
             }
         }

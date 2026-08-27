@@ -10,12 +10,19 @@ class ExpenseSummaryDto
 {
     public function __construct(
         #[Groups('expense-summary:read')]
-        public readonly string $totalAmount,
+        public readonly string $totalUsd,
+        #[Groups('expense-summary:read')]
+        public readonly string $totalUzs,
     ) {
     }
 
-    public function getTotalAmount(): string
+    public function getTotalUsd(): string
     {
-        return $this->totalAmount;
+        return $this->totalUsd;
+    }
+
+    public function getTotalUzs(): string
+    {
+        return $this->totalUzs;
     }
 }

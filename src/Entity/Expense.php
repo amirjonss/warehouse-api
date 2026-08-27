@@ -8,6 +8,7 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -16,8 +17,10 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Expense\Dtos\ExpenseDailyDto;
 use App\Component\Expense\Dtos\ExpenseSummaryDto;
+use App\Component\Product\Enums\Currency;
 use App\Controller\ExpenseCreateAction;
 use App\Controller\ExpenseDailyAction;
+use App\Controller\ExpenseDeleteAction;
 use App\Controller\ExpenseSummaryAction;
 use App\Repository\ExpenseRepository;
 use DateTimeInterface;
@@ -64,13 +67,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             read: false,
             name: 'expenseDaily',
         ),
-        new Delete(security: "is_granted('ROLE_SALES')"),
+        new Delete(
+            controller: ExpenseDeleteAction::class,
+            security: "is_granted('ROLE_SALES')",
+        ),
     ],
     normalizationContext: ['groups' => ['expenses:read']],
     denormalizationContext: ['groups' => ['expenses:write']],
 )]
 #[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
-#[ApiFilter(SearchFilter::class, properties: ['description' => 'ipartial'])]
+#[ApiFilter(SearchFilter::class, properties: ['description' => 'ipartial', 'currency' => 'exact'])]
 class Expense
 {
     #[ORM\Id]
@@ -94,12 +100,31 @@ class Expense
 
     #[ORM\Column(type: 'text')]
     #[Groups(['expenses:write', 'expenses:read'])]
+    #[Assert\NotBlank]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
     #[Groups(['expenses:write', 'expenses:read'])]
     #[Assert\Positive]
     private ?string $amount = null;
+
+    /**
+     * Валюта расхода: тратят из той наличности, что реально собрана, поэтому
+     * доллары и сумы не смешиваются — как и везде в модели.
+     */
+    #[ORM\Column(enumType: Currency::class)]
+    #[Groups(['expenses:write', 'expenses:read'])]
+    #[Assert\NotNull]
+    private ?Currency $currency = null;
+
+    /**
+     * Смена, из наличности которой взяты деньги. Nullable ради расходов, заведённых
+     * до появления подотчёта, — у них владельца денег установить уже неоткуда.
+     */
+    #[ORM\ManyToOne]
+    #[ApiProperty(writable: false)]
+    #[Groups(['expenses:read'])]
+    private ?CashSession $cashSession = null;
 
     public function getId(): ?int
     {
@@ -162,6 +187,30 @@ class Expense
     public function setAmount(string $amount): static
     {
         $this->amount = $amount;
+
+        return $this;
+    }
+
+    public function getCurrency(): ?Currency
+    {
+        return $this->currency;
+    }
+
+    public function setCurrency(Currency $currency): static
+    {
+        $this->currency = $currency;
+
+        return $this;
+    }
+
+    public function getCashSession(): ?CashSession
+    {
+        return $this->cashSession;
+    }
+
+    public function setCashSession(?CashSession $cashSession): static
+    {
+        $this->cashSession = $cashSession;
 
         return $this;
     }

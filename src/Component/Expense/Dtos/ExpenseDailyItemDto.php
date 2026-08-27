@@ -12,7 +12,9 @@ class ExpenseDailyItemDto
         #[Groups('expense-daily:read')]
         public readonly string $date,
         #[Groups('expense-daily:read')]
-        public readonly string $total,
+        public readonly string $totalUsd,
+        #[Groups('expense-daily:read')]
+        public readonly string $totalUzs,
         #[Groups('expense-daily:read')]
         public readonly int $count,
     ) {

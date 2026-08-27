@@ -36,7 +36,8 @@ class ExpenseDailyAction extends AbstractController
         $items = array_map(
             fn (array $row) => new ExpenseDailyItemDto(
                 (string) $row['doc_date'],
-                (string) $row['total'],
+                (string) $row['total_usd'],
+                (string) $row['total_uzs'],
                 (int) $row['count'],
             ),
             $rows,

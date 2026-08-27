@@ -9,6 +9,8 @@ use ApiPlatform\Doctrine\Orm\Extension\QueryItemExtensionInterface;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
 use App\Controller\Base\AbstractController;
+use App\Entity\CashEntry;
+use App\Entity\CashSession;
 use App\Entity\Interfaces\DeletedAtSettableInterface;
 use Doctrine\ORM\QueryBuilder;
 
@@ -64,15 +66,36 @@ class ReadExtension extends AbstractController implements QueryCollectionExtensi
             $this->hideDeleted($queryBuilder, $rootTable);
         }
 
-        switch ($resourceClass) {
-//            case Application::class:
-//                $this->joinEntityAndAddUser($queryBuilder, $rootTable, 'company');
-//                break;
-//
-//            case Company::class:
-//                $this->addUser($queryBuilder, $rootTable);
-//                break;
+        // Чужая касса — чужие деньги: продавец видит только свой подотчёт и его
+        // журнал, администратор — все.
+        if ($this->isAdmin()) {
+            return;
         }
+
+        switch ($resourceClass) {
+            case CashSession::class:
+                $queryBuilder
+                    ->andWhere("{$rootTable}.user = :cashUser")
+                    ->setParameter('cashUser', $this->getUser());
+                break;
+
+            case CashEntry::class:
+                $alias = $rootTable . '_session';
+                $queryBuilder
+                    ->join("{$rootTable}.session", $alias)
+                    ->andWhere("{$alias}.user = :cashUser")
+                    ->setParameter('cashUser', $this->getUser());
+                break;
+        }
+    }
+
+    /**
+     * Роль читаем прямо у пользователя: расширение живёт вне контекста контроллера,
+     * где обычно доступен isGranted().
+     */
+    private function isAdmin(): bool
+    {
+        return in_array('ROLE_ADMIN', $this->getUser()->getRoles(), true);
     }
 
     private function joinEntityAndAddUser(
