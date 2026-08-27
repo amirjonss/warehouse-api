@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
@@ -23,6 +25,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(security: "is_granted('ROLE_SALES')"),
     ],
 )]
+#[ApiFilter(SearchFilter::class, properties: [
+    'saleItem' => 'exact',
+    'saleItem.sale' => 'exact',
+    'batch' => 'exact',
+])]
 class SaleItemAllocation
 {
     #[ORM\Id]

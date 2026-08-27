@@ -18,11 +18,13 @@ use App\Component\Client\Dtos\ClientDebtAgingDto;
 use App\Component\Client\Dtos\ClientDebtSummaryDto;
 use App\Controller\ClientDebtAgingAction;
 use App\Controller\ClientDebtSummaryAction;
+use App\Controller\ClientDeleteAction;
 use App\Filter\HasDebtFilter;
 use App\Repository\ClientRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
 #[ORM\Table(name: 'clients')]
@@ -50,7 +52,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_SALES')"),
         new Patch(security: "is_granted('ROLE_SALES')"),
-        new Delete(security: "is_granted('ROLE_ADMIN')"),
+        new Delete(
+            controller: ClientDeleteAction::class,
+            security: "is_granted('ROLE_ADMIN')",
+        ),
     ],
     paginationItemsPerPage: 20,
 )]
@@ -67,6 +72,8 @@ class Client
 
     #[ORM\Column(length: 255)]
     #[Groups(['sales:read'])]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -79,6 +86,7 @@ class Client
     private ?string $address = null;
 
     #[ORM\Column]
+    #[Assert\NotNull]
     private ?bool $isActive = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]

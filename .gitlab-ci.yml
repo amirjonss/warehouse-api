@@ -39,8 +39,40 @@
 #            docker compose exec php bin/console ask:deploy"
 #
 
+# "test" and "deploy" are part of GitLab's default stage list, so no explicit
+# stages: block is needed here.
+api-test:
+    stage: test
+    image: php:8.3-cli
+    services:
+        - name: postgres:15.2-alpine
+          alias: db
+    variables:
+        APP_ENV: test
+        POSTGRES_DB: warehouse-api
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: pass4ask09
+        # Doctrine appends the "_test" suffix itself (see when@test in config/packages/doctrine.yaml),
+        # so the suite actually runs against "warehouse-api_test".
+        DATABASE_URL: "postgresql://postgres:pass4ask09@db:5432/warehouse-api?serverVersion=15&charset=utf8"
+    before_script:
+        - apt-get update && apt-get install -y libpq-dev libzip-dev libicu-dev git unzip
+        - docker-php-ext-configure intl
+        - docker-php-ext-install pdo_pgsql bcmath intl zip
+        - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+        - composer install --no-interaction --no-progress
+    script:
+        # config/jwt/*.pem is gitignored, so the key pair has to be generated in CI.
+        - bin/console ask:generate:jwtKeys
+        - bin/console doctrine:database:create --if-not-exists --env=test
+        - bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=test
+        - bin/console doctrine:fixtures:load --no-interaction --env=test
+        - composer test:api
+
 deploy-prod-job:
     stage: deploy
+    needs:
+        - api-test
     only:
         - master
     environment:

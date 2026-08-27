@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Repository\ClientRepository;
+use App\Controller\SupplierDeleteAction;
 use App\Repository\SupplierRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -24,7 +24,10 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Get(security: "is_granted('ROLE_ADMIN')"),
         new Post(security: "is_granted('ROLE_ADMIN')"),
         new Patch(security: "is_granted('ROLE_ADMIN')"),
-        new Delete(security: "is_granted('ROLE_ADMIN')"),
+        new Delete(
+            controller: SupplierDeleteAction::class,
+            security: "is_granted('ROLE_ADMIN')",
+        ),
     ],
 
 )]
@@ -37,6 +40,8 @@ class Supplier
 
     #[ORM\Column(length: 255)]
     #[Groups(['batch:read', 'receipts:read'])]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -49,6 +54,7 @@ class Supplier
     private ?string $address = null;
 
     #[ORM\Column]
+    #[Assert\NotNull]
     private ?bool $isActive = null;
 
     public function getId(): ?int

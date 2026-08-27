@@ -24,6 +24,11 @@ class ReceiptCreateAction extends AbstractController
 
     public function __invoke(Receipt $data): Receipt
     {
-        return $this->receiptFactory->create($this->getUser(), $data->getSupplier(), $data->getNote());
+        return $this->receiptFactory->create(
+            $this->getUser(),
+            $data->getSupplier(),
+            $data->getNote() ?? '',
+            $data->getDocDate()
+        );
     }
 }

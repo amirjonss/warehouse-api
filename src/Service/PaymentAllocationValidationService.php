@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Component\Core\Enums\DocStatus;
+use App\Component\PaymentAllocation\Exceptions\MissingPayRateException;
 use App\Component\PaymentAllocation\Exceptions\MissingSaleException;
 use App\Component\PaymentAllocation\Exceptions\PaymentClientMismatchException;
 use App\Component\PaymentAllocation\Exceptions\PaymentNotEditableException;
@@ -29,6 +30,12 @@ class PaymentAllocationValidationService
 
         if ($data->getSale()->getCustomer()?->getId() !== $data->getPayment()->getClient()?->getId()) {
             throw new PaymentClientMismatchException('Cannot allocate a payment to a sale of a different client.');
+        }
+
+        if ($data->getCurrency() !== $data->getPayment()->getCurrency() && $data->getPayRate() === null) {
+            throw new MissingPayRateException(
+                'payRate is required when the allocation currency differs from the payment currency.'
+            );
         }
     }
 }

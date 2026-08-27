@@ -40,6 +40,7 @@ class ProductRepository extends ServiceEntityRepository
                 COUNT(*) FILTER (WHERE remaining_qty <= min_stock) AS low,
                 COUNT(*) FILTER (WHERE remaining_qty <= 0) AS out_of_stock
             FROM product
+            WHERE deleted_at IS NULL
             SQL;
 
         $row = $this->getEntityManager()->getConnection()->fetchAssociative($sql);

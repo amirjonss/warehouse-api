@@ -39,7 +39,15 @@ class UserAuthByRefreshTokenAction extends AbstractController
         DenormalizerInterface $denormalizer
     ): Response {
         $requestDto = $this->getDtoFromRequest($request, RefreshTokenRequestDto::class);
-        $refreshTokenDto = $this->arrayToDto($denormalizer, $tokenEncoder->decode($requestDto->getRefreshToken()));
+
+        try {
+            $payload = $tokenEncoder->decode($requestDto->getRefreshToken());
+        } catch (JWTDecodeFailureException) {
+            // A malformed or expired token is a credentials problem, not a server error.
+            throw new AuthException('Invalid credentials');
+        }
+
+        $refreshTokenDto = $this->arrayToDto($denormalizer, $payload);
 
         $user = $userRepository->find($refreshTokenDto->getId());
 
