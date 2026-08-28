@@ -23,7 +23,7 @@ class ProfitRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<string, string> прибыль, индексированная по коду валюты
+     * @return array<string, string> profit indexed by currency code
      */
     public function getTotalForSale(Sale $sale): array
     {

@@ -17,14 +17,6 @@ use App\Entity\User;
 use App\Repository\CashSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
-/**
- * Сдача денег владельцу в два шага.
- *
- * Продавец фиксирует, что отдал — деньги сразу уходят из его остатка, потому что
- * физически их у него больше нет. Но перед компанией он остаётся ответственным,
- * пока владелец не подтвердит приём: до этого сумма висит в unconfirmed*.
- * Именно этот разрыв и делает запись доказательством, а не заявлением одной стороны.
- */
 class CashHandoverService
 {
     public function __construct(

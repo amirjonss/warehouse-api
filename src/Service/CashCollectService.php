@@ -18,13 +18,6 @@ use App\Repository\CashEntryRepository;
 use App\Repository\CashSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
-/**
- * Связывает платёж со сменой продавца.
- *
- * Смену получает любой проведённый платёж — иначе оборот смены будет неполным.
- * Но в журнал наличных (а значит и в остаток на руках) попадают только CASH:
- * карта и перечисление уходят прямо на счёт компании, продавец их не держал.
- */
 class CashCollectService
 {
     public function __construct(
@@ -38,6 +31,11 @@ class CashCollectService
 
     public function record(Payment $payment): void
     {
+        $this->entityManager->wrapInTransaction(fn () => $this->doRecord($payment));
+    }
+
+    private function doRecord(Payment $payment): void
+    {
         $isCash = $payment->getMethod() === PaymentMethod::CASH;
         $session = $this->cashSessionRepository->findOpenForUser($payment->getAcceptedBy());
 
@@ -49,8 +47,6 @@ class CashCollectService
                 ));
             }
 
-            // Безналичный платёж без смены — законная ситуация: например, приход
-            // на счёт принимает администратор, который наличных вообще не берёт.
             return;
         }
 
@@ -78,10 +74,15 @@ class CashCollectService
     }
 
     /**
-     * Отмена платежа: не удаляем строку прихода, а добавляем обратную — история
-     * остаётся доказательством для обеих сторон, как и у Debt.
+     * Cancelling a payment: the collect row is not deleted, the opposite one is appended,
+     * so the history stays evidence for both sides, exactly as with Debt.
      */
     public function reverse(Payment $payment): void
+    {
+        $this->entityManager->wrapInTransaction(fn () => $this->doReverse($payment));
+    }
+
+    private function doReverse(Payment $payment): void
     {
         $session = $payment->getCashSession();
         if ($session === null) {
@@ -90,7 +91,7 @@ class CashCollectService
 
         $outstanding = $this->outstandingByCurrency($payment);
         if ($outstanding === []) {
-            // Безналичный платёж либо приход уже сторнирован — второй раз не пишем.
+            // Either a non-cash payment, or the collect row was already reversed: no second row.
             return;
         }
 
@@ -128,10 +129,10 @@ class CashCollectService
     }
 
     /**
-     * Сколько по этому платежу реально числится в журнале сейчас: приход минус уже
-     * записанные сторно. Ноль означает, что сторнировать нечего.
+     * What this payment currently amounts to in the journal: the collected sum minus the
+     * reversals already recorded. Zero means there is nothing left to reverse.
      *
-     * @return array<string, string> валюта => сумма
+     * @return array<string, string> currency => amount
      */
     private function outstandingByCurrency(Payment $payment): array
     {
@@ -146,9 +147,9 @@ class CashCollectService
     }
 
     /**
-     * Деньги могли быть уже потрачены или сданы владельцу — тогда сторно увело бы
-     * остаток в минус. Минус в кассе означает, что система врёт про наличные,
-     * поэтому такую отмену запрещаем и объясняем, что делать.
+     * The money may already have been spent or handed over, in which case the reversal
+     * would push the balance below zero. A negative balance means the system is lying
+     * about the cash, so the cancellation is refused with an explanation of what to do.
      */
     private function assertCashStillInSession(
         Payment $payment,

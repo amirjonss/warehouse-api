@@ -301,13 +301,79 @@ class BaseApiTestCase extends ApiTestCase
         return $response->toArray(false);
     }
 
-    protected function createExpense(Client $client, string $docDate, string $amount, string $description = 'Test expense'): string
-    {
+    protected function createExpense(
+        Client $client,
+        string $docDate,
+        string $amount,
+        string $description = 'Test expense',
+        string $currency = 'UZS',
+    ): string {
         return $this->createAndGetIri($client, '/api/expenses', [
             'docDate' => $docDate,
             'description' => $description,
             'amount' => $amount,
+            'currency' => $currency,
         ]);
+    }
+
+    // ---------------------------------------------------------------------
+    // Cash sessions. Cash never moves without one: posting a cash payment
+    // fails with 422 unless the person accepting it has an open session.
+    // ---------------------------------------------------------------------
+
+    /** Opens a session for whoever the client is authenticated as. */
+    protected function openCashSession(Client $client): string
+    {
+        $response = $client->request(Request::METHOD_POST, '/api/cash_sessions', ['body' => json_encode([])]);
+        $this->assertSame(Response::HTTP_CREATED, $response->getStatusCode(), $response->getContent(false));
+
+        return (string) $response->toArray()['@id'];
+    }
+
+    /** Balances and turnover of one session, as the summary sub-resource reports them. */
+    protected function cashSummary(Client $client, string $sessionIri): array
+    {
+        return $client->request(Request::METHOD_POST, $sessionIri . '/summary', [
+            'body' => json_encode([]),
+        ])->toArray(false);
+    }
+
+    /**
+     * Journal rows of one session, oldest first.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function cashEntries(Client $client, string $sessionIri): array
+    {
+        return $client->request(
+            Request::METHOD_GET,
+            '/api/cash_entries?session=' . basename($sessionIri) . '&order[id]=asc'
+        )->toArray(false)['member'] ?? [];
+    }
+
+    /**
+     * The invariant the whole module rests on: the denormalised balance on the
+     * session must equal the sum of its journal rows, per currency.
+     */
+    protected function assertCashJournalMatchesBalance(Client $client, string $sessionIri): void
+    {
+        $session = $client->request(Request::METHOD_GET, $sessionIri)->toArray();
+
+        $sums = ['USD' => 0.0, 'UZS' => 0.0];
+        foreach ($this->cashEntries($client, $sessionIri) as $entry) {
+            $sums[$entry['currency']] += (float) $entry['amount'];
+        }
+
+        $this->assertSame(
+            (float) $session['balanceUsd'],
+            $sums['USD'],
+            'USD: the journal drifted away from the session\'s denormalised balance'
+        );
+        $this->assertSame(
+            (float) $session['balanceUzs'],
+            $sums['UZS'],
+            'UZS: the journal drifted away from the session\'s denormalised balance'
+        );
     }
 
     /**

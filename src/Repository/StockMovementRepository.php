@@ -22,7 +22,7 @@ class StockMovementRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<int, string> остаток, индексированный по product id
+     * @return array<int, string> remaining quantity indexed by product id
      */
     public function getRemainingQtyByProduct(): array
     {

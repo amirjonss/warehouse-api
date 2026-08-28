@@ -26,7 +26,8 @@ class CashSessionOpenAction extends AbstractController
     public function __invoke(CashSession $data): CashSession
     {
         $me = $this->getUser();
-        // Продавец открывает смену только себе: чужая смена — это чужие деньги.
+        // A seller may only open a session for themselves: somebody else's session is
+        // somebody else's money.
         $owner = $data->getUser() ?? $me;
 
         if ($owner->getId() !== $me->getId() && !$this->isGranted('ROLE_ADMIN')) {

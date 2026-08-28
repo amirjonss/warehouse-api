@@ -70,7 +70,7 @@ class PaymentChangeStatusService
             $this->assertNotExceedingDebt($payment);
             $this->recordDebtEntries($payment);
             $payment->setPostedAt(new DateTime());
-            // Долг клиента закрылся — теперь фиксируем, у кого оказались деньги.
+
             $this->cashCollectService->record($payment);
 
             return $payment;

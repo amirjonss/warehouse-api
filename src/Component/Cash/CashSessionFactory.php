@@ -12,7 +12,7 @@ use DateTime;
 
 class CashSessionFactory
 {
-    private const NUMBER_PREFIX = 'КС-';
+    private const NUMBER_PREFIX = 'CS-';
     private const NUMBER_LENGTH = 5;
 
     public function __construct(private readonly CashSessionRepository $cashSessionRepository)

@@ -18,6 +18,9 @@ class ChangeStatusApiTest extends BaseApiTestCase
     public function testSuccessPostPaymentClosesTheDebt(): void
     {
         $client = $this->createSalesClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $saleIri = $this->findIriBy(Sale::class, ['number' => 'SL-00001']);
         $customerIri = $this->clientIri('Test Client 2');
 
@@ -48,6 +51,9 @@ class ChangeStatusApiTest extends BaseApiTestCase
     public function testSuccessPartialPaymentLeavesTheRest(): void
     {
         $client = $this->createSalesClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $saleIri = $this->findIriBy(Sale::class, ['number' => 'SL-00001']);
 
         $paymentIri = $this->createDraftPayment($client, 'Test Client 2', '20.00');

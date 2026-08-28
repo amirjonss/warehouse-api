@@ -66,8 +66,8 @@ class ReadExtension extends AbstractController implements QueryCollectionExtensi
             $this->hideDeleted($queryBuilder, $rootTable);
         }
 
-        // Чужая касса — чужие деньги: продавец видит только свой подотчёт и его
-        // журнал, администратор — все.
+        // Somebody else's cash is somebody else's money: a seller sees only their own
+        // float and its journal, an administrator sees every one of them.
         if ($this->isAdmin()) {
             return;
         }
@@ -90,8 +90,8 @@ class ReadExtension extends AbstractController implements QueryCollectionExtensi
     }
 
     /**
-     * Роль читаем прямо у пользователя: расширение живёт вне контекста контроллера,
-     * где обычно доступен isGranted().
+     * The role is read straight off the user: this extension lives outside the controller
+     * context where isGranted() would normally be available.
      */
     private function isAdmin(): bool
     {

@@ -10,8 +10,8 @@ use App\Entity\Sale;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Декорирует стандартный Doctrine-провайдер коллекции продаж и дозаполняет
- * остаток долга (USD/UZS) одним запросом на всю страницу.
+ * Decorates the stock Doctrine collection provider for sales and fills in the
+ * outstanding debt (USD/UZS) with one query for the whole page.
  *
  * @implements ProviderInterface<Sale>
  */

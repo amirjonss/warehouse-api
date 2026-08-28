@@ -8,9 +8,9 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
 /**
- * Расход был единственной денежной сущностью без валюты. Существующие записи —
- * сумовые (долларовых расходов до сих пор просто не могло быть), поэтому
- * проставляем UZS и только потом вешаем NOT NULL.
+ * The expense was the only money-carrying entity without a currency. Every existing row
+ * is in UZS (a USD expense simply could not be entered until now), so backfill UZS first
+ * and only then add NOT NULL.
  */
 final class Version20260827100000 extends AbstractMigration
 {

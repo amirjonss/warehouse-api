@@ -22,11 +22,11 @@ class ExpenseRepository extends ServiceEntityRepository
     }
 
     /**
-     * Расход живёт в двух валютах и складывать их нельзя, поэтому итог всегда пара
-     * чисел — как getSummary() у прибыли.
+     * An expense lives in two currencies and they cannot be added up, so the total is
+     * always a pair of numbers, just like getSummary() on profit.
      *
-     * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
-     * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     * @param string|null $from inclusive lower bound on doc_date (YYYY-MM-DD)
+     * @param string|null $to   exclusive upper bound on doc_date (YYYY-MM-DD)
      *
      * @return array{totalUsd: string, totalUzs: string}
      */
@@ -54,12 +54,12 @@ class ExpenseRepository extends ServiceEntityRepository
     }
 
     /**
-     * Суммы расходов по дням за период — для столбчатой диаграммы одним запросом.
-     * Валюты разнесены по колонкам: столбик рисуется по сумовой части, долларовая
-     * показывается подписью, складывать их без курса нельзя.
+     * Daily expense totals over a period, for the bar chart in a single query.
+     * The currencies live in separate columns: the bar is drawn from the UZS part and the
+     * USD one is shown as a label, because adding them up without a rate is meaningless.
      *
-     * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
-     * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     * @param string|null $from inclusive lower bound on doc_date (YYYY-MM-DD)
+     * @param string|null $to   exclusive upper bound on doc_date (YYYY-MM-DD)
      *
      * @return array<int, array{doc_date: string, total_usd: string, total_uzs: string, count: string}>
      */

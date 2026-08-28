@@ -8,14 +8,14 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
 /**
- * Подотчёт продавца: смена (cash_sessions) и журнал движения наличных
- * (cash_entries) — четвёртый журнал рядом с debts, stock_movements и profits.
+ * The seller's float: a session (cash_sessions) plus the journal of cash movements
+ * (cash_entries) — a fourth journal next to debts, stock_movements and profits.
  *
- * Платёж и расход получают ссылку на смену: у платежа она нужна и для наличных
- * (формируют остаток), и для карты с перечислением (входят в оборот смены, но
- * обязательства не создают).
+ * Payments and expenses get a link to the session. A payment needs it both for cash
+ * (which forms the balance on hand) and for card/transfer (which count towards the
+ * session's turnover but create no obligation).
  *
- * «Одна открытая смена на продавца» гарантирует частичный уникальный индекс.
+ * "One open session per seller" is guaranteed by a partial unique index.
  */
 final class Version20260827120000 extends AbstractMigration
 {
@@ -55,9 +55,9 @@ final class Version20260827120000 extends AbstractMigration
         $this->addSql(<<<'SQL'
             CREATE INDEX IDX_F8E36CDEE1FA7797 ON cash_sessions (closed_by_id)
         SQL);
-        // PostgreSQL сам нормализует условие в ((status)::text = 'open'::text) —
-        // именно в этом виде оно записано в маппинге CashSession, чтобы сравнение
-        // схемы не видело вечного расхождения.
+        // PostgreSQL normalises the predicate to ((status)::text = 'open'::text), and that
+        // is exactly how the CashSession mapping spells it out, so that schema comparison
+        // does not report a permanent difference.
         $this->addSql(<<<'SQL'
             CREATE UNIQUE INDEX uniq_cash_sessions_open_user ON cash_sessions (user_id) WHERE (status = 'open')
         SQL);

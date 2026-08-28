@@ -14,16 +14,10 @@ use App\Entity\Payment;
 use App\Entity\User;
 use DateTime;
 
-/**
- * Создаёт строку журнала наличных и тут же двигает денормализованный остаток на
- * смене — ровно как DebtFactory двигает Client::debtUsd/debtUzs. Единственное
- * место, где меняются balance* и unconfirmed*: если баланс разошёлся с суммой
- * журнала, баг искать здесь.
- */
 class CashEntryFactory
 {
     /**
-     * @param string $amount знаковая сумма: + приход, − расход, сдача, недостача
+     * @param string $amount signed: + collected, − spent, handed over or short
      */
     public function create(
         CashEntryKind $kind,
@@ -50,12 +44,12 @@ class CashEntryFactory
 
         $session->addEntry($entry);
 
-        // Деньги физически покидают продавца в момент сдачи, а не в момент
-        // подтверждения, поэтому balance двигаем и для DECLARED-строки.
+        // The money physically leaves the seller when it is handed over, not when the
+        // owner confirms it, so the balance moves for a DECLARED row as well.
         $this->addToBalance($session, $currency, $amount);
 
         if ($kind === CashEntryKind::HANDOVER && $status === CashEntryStatus::DECLARED) {
-            // Сумма сдачи отрицательная, а «заявлено» — величина положительная.
+            // The handover amount is negative, while "declared" is a positive figure.
             $this->addToUnconfirmed($session, $currency, bcmul($amount, '-1', 2));
         }
 
@@ -63,8 +57,8 @@ class CashEntryFactory
     }
 
     /**
-     * Владелец подтвердил приём денег: остаток в сумке уже уменьшился при заявке,
-     * снимается только пометка о неподтверждённом.
+     * The owner confirmed the money arrived: the balance in the bag already went down
+     * when it was declared, so only the "unconfirmed" mark is cleared.
      */
     public function confirm(CashEntry $entry, User $confirmedBy): CashEntry
     {

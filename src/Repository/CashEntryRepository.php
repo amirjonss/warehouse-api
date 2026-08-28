@@ -26,7 +26,7 @@ class CashEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Заявленные, но не подтверждённые сдачи — пока они есть, смену закрывать нельзя.
+     * Handovers declared but not confirmed: while any remain, the session cannot close.
      *
      * @return CashEntry[]
      */
@@ -40,8 +40,8 @@ class CashEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Строки прихода по платежу — нужны при отмене платежа, чтобы понять, из какой
-     * смены сторнировать и не сторнировать дважды.
+     * The journal rows of one payment, needed when it is cancelled to work out which
+     * session to reverse from and to avoid reversing twice.
      *
      * @return CashEntry[]
      */
@@ -51,8 +51,8 @@ class CashEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Сумма журнала по валютам — источник истины для сверки с денормализованным
-     * balance* на смене. Расхождение означает баг в CashEntryFactory.
+     * Journal totals per currency: the source of truth to reconcile against the
+     * denormalised balance* on the session. A mismatch means a bug in CashEntryFactory.
      *
      * @return array{USD: string, UZS: string}
      */

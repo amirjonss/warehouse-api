@@ -18,6 +18,9 @@ class PaymentAutoAllocationApiTest extends BaseApiTestCase
     public function testMoneySpreadsAcrossThreeSalesOldestFirst(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 1';
 
         // Three sales of 60.00 USD each, deliberately created out of date order.
@@ -43,6 +46,9 @@ class PaymentAutoAllocationApiTest extends BaseApiTestCase
     public function testAutoAllocationIsIdempotentlyRefusedOnceThereIsNoDebtLeft(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 1';
 
         $saleIri = $this->postSale($client, $customer, '2026-08-15', '10.000', '6.00');
@@ -62,6 +68,9 @@ class PaymentAutoAllocationApiTest extends BaseApiTestCase
     public function testAutoAllocationStaysWithinItsOwnCurrency(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 1';
 
         // A UZS-denominated sale, using UZS-costed stock so no rate is needed.

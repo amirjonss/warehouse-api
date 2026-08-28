@@ -15,11 +15,15 @@ class SummaryApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $this->createExpense($client, '2026-08-25', '100.00');
         $this->createExpense($client, '2026-08-26', '40.50');
+        $this->createExpense($client, '2026-08-26', '7.00', 'Test expense', 'USD');
 
         $response = $client->request(Request::METHOD_POST, '/api/expenses/summary');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $this->assertSame(140.5, (float) $response->toArray()['totalAmount']);
+        // Currencies never mix: an expense now carries its own, and each is totalled apart.
+        $data = $response->toArray();
+        $this->assertSame(140.5, (float) $data['totalUzs']);
+        $this->assertSame(7.0, (float) $data['totalUsd']);
     }
 
     public function testSuccessGetExpenseSummaryWithoutExpensesIsZero(): void
@@ -30,7 +34,9 @@ class SummaryApiTest extends BaseApiTestCase
         );
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $this->assertSame(0.0, (float) $response->toArray()['totalAmount']);
+        $data = $response->toArray();
+        $this->assertSame(0.0, (float) $data['totalUzs']);
+        $this->assertSame(0.0, (float) $data['totalUsd']);
     }
 
     public function testIncorrectGetExpenseSummaryAnonymously(): void

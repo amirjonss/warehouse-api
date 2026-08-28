@@ -30,6 +30,9 @@ class CashSessionCloseAction extends AbstractController
     public function __invoke(CashSession $data, Request $request): CashSession
     {
         $dto = $this->getDtoFromRequest($request, CashCloseRequestDto::class);
+        // See CashHandoverDeclareAction: validate before the service runs, or a
+        // non-numeric amount blows up inside bcmath as a 500.
+        $this->validate($dto);
 
         return $this->cashSessionCloseService->close(
             $data,

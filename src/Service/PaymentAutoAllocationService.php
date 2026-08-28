@@ -24,8 +24,8 @@ class PaymentAutoAllocationService
     }
 
     /**
-     * Распределяет платёж по непогашенным продажам клиента от старых к новым
-     * (только в валюте платежа) и сразу проводит его.
+     * Spreads the payment across the client's unsettled sales, oldest first and within
+     * the payment's own currency, then posts it right away.
      */
     public function autoAllocateAndPost(Payment $payment): Payment
     {

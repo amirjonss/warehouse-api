@@ -26,8 +26,8 @@ class ExpenseCreateAction extends AbstractController
 
     public function __invoke(Expense $data): Expense
     {
-        // Фабрика требует непустые значения, поэтому валидируем до неё — иначе
-        // отсутствующая валюта падает TypeError'ом в 500 вместо внятного 422.
+        // The factory expects non-empty values, so validate before calling it: a missing
+        // currency would otherwise raise a TypeError — a 500 instead of a clear 422.
         $this->validate($data);
 
         $expense = $this->expenseFactory->create(
@@ -38,8 +38,8 @@ class ExpenseCreateAction extends AbstractController
             $data->getDocDate()
         );
 
-        // Если у сотрудника открыта смена, деньги уходят из его наличности —
-        // сервис проверит остаток и запишет строку в журнал кассы.
+        // If the employee has an open session, the money leaves their cash on hand: the
+        // service checks the balance and appends a row to the cash journal.
         return $this->cashExpenseService->create($expense);
     }
 }

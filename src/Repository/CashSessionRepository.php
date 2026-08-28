@@ -36,10 +36,6 @@ class CashSessionRepository extends ServiceEntityRepository
         return $result['number'] ?? null;
     }
 
-    /**
-     * Открытая смена у продавца всегда одна — это гарантирует частичный уникальный
-     * индекс в БД, здесь просто достаём её.
-     */
     public function findOpenForUser(User $user): ?CashSession
     {
         return $this->findOneBy(['user' => $user, 'status' => CashSessionStatus::OPEN]);
@@ -57,22 +53,15 @@ class CashSessionRepository extends ServiceEntityRepository
         ksort($unique);
 
         foreach ($unique as $session) {
-            $this->getEntityManager()->lock($session, LockMode::PESSIMISTIC_WRITE);
+            $this->getEntityManager()->refresh($session, LockMode::PESSIMISTIC_WRITE);
         }
     }
 
-    public function getCurrentStatus(int $id): string
-    {
-        return (string) $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT status FROM cash_sessions WHERE id = :id',
-            ['id' => $id]
-        );
-    }
-
     /**
-     * Оборот смены по способам оплаты — то, что продавец собрал за период, включая
-     * карту и перечисление, которые до него физически не доходили. Не дублируем это
-     * в журнал: данные уже лежат в payments, связанных со сменой при проведении.
+     * The session's turnover by payment method: everything the seller collected over the
+     * period, including card and transfer, which never physically reached them. It is not
+     * duplicated into the journal — the data already sits in the payments linked to the
+     * session at posting time.
      *
      * @return array<int, array{method: string, currency: string, total: string, count: int}>
      */
@@ -101,10 +90,6 @@ class CashSessionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Сколько наличных сейчас на руках у всех продавцов вместе — для плитки на
-     * дашборде владельца. Неподтверждённые сдачи считаются отдельно: деньги уже
-     * не у продавца, но компания их ещё не признала полученными.
-     *
      * @return array{balanceUsd: string, balanceUzs: string, unconfirmedUsd: string, unconfirmedUzs: string, openSessions: int}
      */
     public function getTotalOnHands(): array

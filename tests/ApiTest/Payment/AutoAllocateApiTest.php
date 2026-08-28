@@ -19,6 +19,9 @@ class AutoAllocateApiTest extends BaseApiTestCase
     public function testSuccessAutoAllocateClosesTheOldestDebtFirst(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 2';
 
         // A second sale for the same client, dated after the fixture one: 5 x 4.00 = 20.00 USD.
@@ -47,6 +50,9 @@ class AutoAllocateApiTest extends BaseApiTestCase
     public function testAutoAllocatePostsThePayment(): void
     {
         $client = $this->createSalesClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $paymentIri = $this->createDraftPayment($client, 'Test Client 2', '50.00');
 
         $this->autoAllocate($client, $paymentIri);

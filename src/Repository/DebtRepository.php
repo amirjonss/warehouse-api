@@ -25,7 +25,7 @@ class DebtRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<string, string> баланс, индексированный по коду валюты
+     * @return array<string, string> balance indexed by currency code
      */
     public function getBalanceForSale(Sale $sale): array
     {
@@ -49,10 +49,10 @@ class DebtRepository extends ServiceEntityRepository
     }
 
     /**
-     * Остатки долга по нескольким продажам одним запросом.
+     * Outstanding debt for several sales in a single query.
      *
      * @param int[] $saleIds
-     * @return array<int, array<string, string>> saleId => [код валюты => баланс]
+     * @return array<int, array<string, string>> saleId => [currency code => balance]
      */
     public function getBalancesForSales(array $saleIds): array
     {
@@ -79,7 +79,7 @@ class DebtRepository extends ServiceEntityRepository
     }
 
     /**
-     * Непогашенные продажи клиента в заданной валюте, от старых к новым.
+     * A client's unsettled sales in the given currency, oldest first.
      *
      * @return array<int, array{sale: Sale, balance: string}>
      */

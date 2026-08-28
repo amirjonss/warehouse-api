@@ -29,6 +29,9 @@ class DeleteApiTest extends BaseApiTestCase
     public function testIncorrectDeleteAllocationOfPostedPayment(): void
     {
         $client = $this->createSalesClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $paymentIri = $this->createDraftPayment($client, 'Test Client 2', '50.00');
         $allocation = $this->allocate($client, $paymentIri, '50.00');
 

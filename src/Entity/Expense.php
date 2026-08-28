@@ -108,19 +108,11 @@ class Expense
     #[Assert\Positive]
     private ?string $amount = null;
 
-    /**
-     * Валюта расхода: тратят из той наличности, что реально собрана, поэтому
-     * доллары и сумы не смешиваются — как и везде в модели.
-     */
     #[ORM\Column(enumType: Currency::class)]
     #[Groups(['expenses:write', 'expenses:read'])]
     #[Assert\NotNull]
     private ?Currency $currency = null;
 
-    /**
-     * Смена, из наличности которой взяты деньги. Nullable ради расходов, заведённых
-     * до появления подотчёта, — у них владельца денег установить уже неоткуда.
-     */
     #[ORM\ManyToOne]
     #[ApiProperty(writable: false)]
     #[Groups(['expenses:read'])]

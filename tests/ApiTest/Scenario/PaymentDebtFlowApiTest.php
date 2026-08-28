@@ -14,6 +14,9 @@ class PaymentDebtFlowApiTest extends BaseApiTestCase
     public function testSellOnCreditThenSettleInTwoInstalments(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 1';
         $customerIri = $this->clientIri($customer);
 
@@ -53,6 +56,9 @@ class PaymentDebtFlowApiTest extends BaseApiTestCase
     public function testClientBalanceTracksTheLedgerThroughout(): void
     {
         $client = $this->createAdminClientWithCredentials();
+        // Cash is accepted by a specific person: without an open session posting a payment
+        // is refused with a 422, so the session is opened before the first posted.
+        $this->openCashSession($client);
         $customer = 'Test Client 1';
         $customerIri = $this->clientIri($customer);
 

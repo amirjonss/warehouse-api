@@ -18,6 +18,7 @@ test-api:
 	$(DC_PHP) bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=test
 	$(DC_PHP) bin/console doctrine:fixtures:load --no-interaction --env=test
 	$(DC_PHP) composer test:api
+	$(DC_PHP) composer test:integration
 
 reset-test-db:
 	$(DC_PHP) bin/console doctrine:database:drop -f --env=test

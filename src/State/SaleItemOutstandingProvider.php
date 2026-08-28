@@ -10,8 +10,8 @@ use App\Entity\Sale;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Декорирует стандартный Doctrine-провайдер одной продажи и дозаполняет
- * остаток долга (USD/UZS).
+ * Decorates the stock Doctrine item provider for a single sale and fills in the
+ * outstanding debt (USD/UZS).
  *
  * @implements ProviderInterface<Sale>
  */

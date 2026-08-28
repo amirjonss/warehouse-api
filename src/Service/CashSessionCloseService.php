@@ -20,12 +20,12 @@ use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Закрытие смены владельцем.
+ * Closing a session, done by the owner.
  *
- * Владелец вводит, сколько принял по каждой валюте. Всё, что числилось за
- * продавцом, но не принесено, становится строкой «недостача» — сумма остаётся
- * видимой в журнале, а не растворяется при обнулении остатка. Ради этой цифры
- * модуль и делался.
+ * The owner enters how much they took in per currency. Anything that was on the seller's
+ * account but never arrived becomes a "shortage" row: the figure stays visible in the
+ * journal instead of dissolving when the balance is zeroed. That number is the reason
+ * this module exists.
  */
 class CashSessionCloseService
 {
@@ -50,6 +50,12 @@ class CashSessionCloseService
             }
 
             $this->cashSessionRepository->lockSessions([$session]);
+
+            // While we waited for the lock, another admin could have closed the session.
+            if (!$session->isOpen()) {
+                throw new CashSessionClosedException(sprintf('Смена %s уже закрыта.', $session->getNumber()));
+            }
+
             $this->assertNoDeclaredHandovers($session);
 
             foreach ([[Currency::USD, $acceptedUsd], [Currency::UZS, $acceptedUzs]] as [$currency, $accepted]) {
@@ -94,7 +100,7 @@ class CashSessionCloseService
                 $session,
                 bcmul($accepted, '-1', 2),
                 $currency,
-                // Владелец сам вводит сумму при закрытии — подтверждать нечего.
+                // The owner enters the amount themselves at closing: nothing left to confirm.
                 CashEntryStatus::CONFIRMED,
                 null,
                 null,

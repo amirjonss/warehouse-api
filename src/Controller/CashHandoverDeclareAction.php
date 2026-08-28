@@ -38,6 +38,7 @@ class CashHandoverDeclareAction extends AbstractController
         }
 
         $dto = $this->getDtoFromRequest($request, CashHandoverRequestDto::class);
+        $this->validate($dto);
 
         return $this->cashHandoverService->declareHandover(
             $data,

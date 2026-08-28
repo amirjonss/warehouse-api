@@ -19,14 +19,14 @@ use App\Repository\CashSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Расход из наличности подотчёта.
+ * An expense paid out of the float's cash.
  *
- * Аванса нет: тратить можно только то, что реально собрано, поэтому сумма
- * проверяется против остатка именно в своей валюте — доллары и сумы не
- * взаимозаменяемы, и «в сумме хватает» здесь не аргумент.
+ * There are no advances: only what has actually been collected can be spent, so the
+ * amount is checked against the balance in its own currency. Dollars and sums are not
+ * interchangeable, and "there is enough in total" is not an argument here.
  *
- * Если открытой смены нет, расход остаётся общим расходом компании (как было до
- * появления подотчёта): деньги не выходили из чьей-то сумки, отслеживать нечего.
+ * With no open session the expense stays an ordinary company expense, as it was before
+ * the float existed: the money never left anyone's bag, so there is nothing to track.
  */
 class CashExpenseService
 {
@@ -64,8 +64,8 @@ class CashExpenseService
                 CashEntryStatus::CONFIRMED,
                 null,
                 $expense,
-                // Описание дублируем в журнал: при удалении расхода ссылка отвяжется,
-                // а строка обязана остаться читаемой.
+                // The description is copied into the journal: deleting the expense detaches
+                // the link, and the row still has to read sensibly.
                 sprintf('Расход: %s', $expense->getDescription()),
                 $this->currentUser->getUser()
             );
@@ -77,8 +77,8 @@ class CashExpenseService
     }
 
     /**
-     * Удаление расхода возвращает деньги в кассу обратной строкой — журнал не
-     * переписываем, как и у платежа.
+     * Deleting an expense returns the money with an opposite row: the journal is never
+     * rewritten, exactly as with a payment.
      */
     public function delete(Expense $expense): void
     {
@@ -101,7 +101,9 @@ class CashExpenseService
 
             $this->cashSessionRepository->lockSessions([$session]);
 
-            foreach ($this->outstandingEntries($expense) as $entry) {
+            $entries = $this->outstandingEntries($expense);
+
+            foreach ($entries as $entry) {
                 $reversal = $this->cashEntryFactory->create(
                     CashEntryKind::EXPENSE,
                     $session,
@@ -116,12 +118,13 @@ class CashExpenseService
                 $this->entityManager->persist($reversal);
             }
 
-            $this->entityManager->flush();
-
-            // Расход сейчас исчезнет, а строки журнала обязаны остаться: рвём ссылку
-            // прямым запросом, чтобы внешний ключ не держал удаление. Описание уже
-            // продублировано в note, так что строка останется читаемой.
-            $this->detachEntries($expense);
+            // The expense is about to disappear while the journal rows must survive, so the
+            // link is broken on the entities themselves. Doctrine runs UPDATE before DELETE,
+            // so the foreign key will not block the removal. The description is already
+            // duplicated into note, so the row stays readable.
+            foreach ($entries as $entry) {
+                $entry->setExpense(null);
+            }
 
             $this->entityManager->remove($expense);
         });
@@ -133,20 +136,6 @@ class CashExpenseService
     private function outstandingEntries(Expense $expense): array
     {
         return $this->cashEntryRepository->findBy(['expense' => $expense]);
-    }
-
-    private function detachEntries(Expense $expense): void
-    {
-        $this->entityManager
-            ->createQuery('UPDATE ' . CashEntry::class . ' ce SET ce.expense = NULL WHERE ce.expense = :expense')
-            ->setParameter('expense', $expense)
-            ->execute();
-
-        // Bulk-UPDATE проходит мимо identity map — освежаем объекты, иначе
-        // финальный flush снова запишет в них старую ссылку.
-        foreach ($this->outstandingEntries($expense) as $stale) {
-            $this->entityManager->refresh($stale);
-        }
     }
 
     private function assertEnoughCash(CashSession $session, Expense $expense): void

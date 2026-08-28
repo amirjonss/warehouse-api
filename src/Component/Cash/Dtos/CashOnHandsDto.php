@@ -7,7 +7,7 @@ namespace App\Component\Cash\Dtos;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
- * Сколько наличных сейчас у всех продавцов вместе — плитка на дашборде владельца.
+ * How much cash all sellers are holding right now: the tile on the owner's dashboard.
  */
 class CashOnHandsDto
 {

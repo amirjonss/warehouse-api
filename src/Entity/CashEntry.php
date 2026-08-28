@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
@@ -11,6 +12,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\QueryParameter;
 use App\Controller\CashHandoverConfirmAction;
 use App\Component\Core\Enums\CashEntryKind;
 use App\Component\Core\Enums\CashEntryStatus;
@@ -21,23 +23,21 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
-/**
- * Журнал движения наличных внутри подотчёта — четвёртый журнал в системе, рядом
- * с Debt, StockMovement и Profit, и устроен так же.
- *
- * Сумма знаковая: COLLECT приходит с плюсом, EXPENSE / HANDOVER / SHORTAGE — с
- * минусом (как quantity у StockMovement). Отмена документа не удаляет строку, а
- * добавляет обратную — история остаётся доказательством для обеих сторон.
- */
 #[ORM\Entity(repositoryClass: CashEntryRepository::class)]
 #[ORM\Table(name: 'cash_entries')]
 #[ORM\Index(name: 'idx_cash_entries_session', columns: ['session_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_SALES')"),
+        new GetCollection(
+            security: "is_granted('ROLE_SALES')",
+            parameters: [
+                'occurredAt' => new QueryParameter(
+                    filter: new DateFilter(),
+                    property: 'occurredAt'
+                ),
+            ]
+        ),
         new Get(security: "is_granted('ROLE_SALES')"),
-        // Подтверждает приём денег только владелец — иначе запись перестаёт быть
-        // доказательством и снова становится словом одной стороны.
         new Post(
             uriTemplate: '/cash_entries/{id}/confirm',
             controller: CashHandoverConfirmAction::class,
@@ -79,7 +79,7 @@ class CashEntry
     #[Groups(['cash-entry:read'])]
     private ?CashEntryKind $kind = null;
 
-    /** Знаковая: + приход наличных, − расход, сдача и недостача. */
+    /** Signed: + cash collected, − spent, handed over or short. */
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
     #[Groups(['cash-entry:read'])]
     private ?string $amount = null;
@@ -88,7 +88,7 @@ class CashEntry
     #[Groups(['cash-entry:read'])]
     private ?Currency $currency = null;
 
-    /** DECLARED осмысленно только для HANDOVER: продавец отдал, админ не подтвердил. */
+    /** DECLARED only makes sense for HANDOVER: handed over, not yet confirmed by an admin. */
     #[ORM\Column(enumType: CashEntryStatus::class)]
     #[Groups(['cash-entry:read'])]
     private ?CashEntryStatus $status = null;

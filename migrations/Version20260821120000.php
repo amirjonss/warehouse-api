@@ -8,8 +8,8 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
 /**
- * Курс прихода больше не обязателен для UZS-позиций: снимаем NOT NULL с rate у позиции
- * прихода и с производных курсов у партии и распределения себестоимости.
+ * The receipt rate is no longer mandatory for UZS lines: drop NOT NULL from the receipt
+ * item's rate and from the rates derived on the batch and the cost allocation.
  */
 final class Version20260821120000 extends AbstractMigration
 {

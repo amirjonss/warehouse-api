@@ -22,10 +22,10 @@ class SaleItemRepository extends ServiceEntityRepository
     }
 
     /**
-     * Топ товаров по проданному количеству за период (только проведённые продажи).
+     * Top products by quantity sold over a period (posted sales only).
      *
-     * @param string|null $from включительная нижняя граница doc_date (YYYY-MM-DD)
-     * @param string|null $to   исключающая верхняя граница doc_date (YYYY-MM-DD)
+     * @param string|null $from inclusive lower bound on doc_date (YYYY-MM-DD)
+     * @param string|null $to   exclusive upper bound on doc_date (YYYY-MM-DD)
      *
      * @return array<int, array{productId: int, productName: string, quantity: string, totalUsd: string, totalUzs: string}>
      */
