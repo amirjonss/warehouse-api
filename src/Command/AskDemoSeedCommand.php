@@ -174,6 +174,12 @@ class AskDemoSeedCommand extends Command
     /** @var array<int, string> spl_object_id(Product) => base purchase price, see seedProducts()/addReceiptItem() */
     private array $basePriceByProductObjectId = [];
 
+    /**
+     * @var array<int, float> spl_object_id(Product) => how often this product is traded,
+     *      relative to the others. See buildPopularity().
+     */
+    private array $popularityByProductObjectId = [];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private TokenStorageInterface $tokenStorage,
@@ -276,6 +282,8 @@ class AskDemoSeedCommand extends Command
 
         $io->section('Товары');
         $products = $this->seedProducts($io, $categories, $counts['products']);
+
+        $this->buildPopularity($products);
 
         $io->section('Клиенты');
         $clients = $this->seedClients($io, $counts['clients']);
@@ -514,7 +522,9 @@ class AskDemoSeedCommand extends Command
             $this->entityManager->persist($receipt);
             $this->entityManager->flush();
 
-            $lineProducts = $this->randomSample($products, random_int(1, 5));
+            // Purchasing follows demand: with uniform receipts the popular products would
+            // simply run out and the sales curve would flatten right back.
+            $lineProducts = $this->weightedSample($products, random_int(1, 5));
             foreach ($lineProducts as $product) {
                 $this->addReceiptItem($receipt, $product, $docDate, $windowStart, $windowEnd);
             }
@@ -584,7 +594,7 @@ class AskDemoSeedCommand extends Command
             if ($available === []) {
                 break;
             }
-            $lineProducts = $this->randomSample(array_values($available), min(random_int(1, 4), count($available)));
+            $lineProducts = $this->weightedSample(array_values($available), min(random_int(1, 4), count($available)));
 
             $sale = $this->saleFactory->create($actor, $client, '', $docDate);
             $this->entityManager->persist($sale);
@@ -596,7 +606,10 @@ class AskDemoSeedCommand extends Command
                 if (bccomp($remaining, '1', 3) <= 0) {
                     continue;
                 }
-                $maxQty = (int) min(50, (float) $remaining);
+                // Popular products also leave in bigger lots, which is what turns a
+                // frequency skew into a proper Pareto curve.
+                $ceiling = (int) round(10 + 40 * $this->popularityOf($product));
+                $maxQty = (int) min($ceiling, (float) $remaining);
                 if ($maxQty < 1) {
                     continue;
                 }
@@ -1295,6 +1308,74 @@ class AskDemoSeedCommand extends Command
     private function randomFrom(array $items): mixed
     {
         return $items[array_rand($items)];
+    }
+
+    /**
+     * Real assortments are not uniform: a handful of products carry the turnover and a long
+     * tail barely moves. Without this the ABC analysis comes out flat — class A ends up
+     * holding half the catalogue, which never happens in a real shop.
+     *
+     * Weights follow a Zipf-like 1/rank^0.7 over a shuffled order, so which products become
+     * bestsellers is random but the shape of the curve is not. The exponent is deliberately
+     * mild: popularity already drives both how often a product is picked and how much of it
+     * leaves at a time, and a steeper curve collapses class A to a handful of products.
+     *
+     * @param Product[] $products
+     */
+    private function buildPopularity(array $products): void
+    {
+        $shuffled = $products;
+        shuffle($shuffled);
+
+        foreach ($shuffled as $rank => $product) {
+            $this->popularityByProductObjectId[spl_object_id($product)] = 1 / (($rank + 1) ** 0.7);
+        }
+    }
+
+    private function popularityOf(Product $product): float
+    {
+        return $this->popularityByProductObjectId[spl_object_id($product)] ?? 1.0;
+    }
+
+    /**
+     * Like randomSample(), but a product's chance of being picked is its popularity. Draws
+     * without replacement, so one document never lists the same product twice.
+     *
+     * @param Product[] $items
+     *
+     * @return Product[]
+     */
+    private function weightedSample(array $items, int $count): array
+    {
+        $pool = array_values($items);
+        $count = min($count, count($pool));
+        if ($count <= 0) {
+            return [];
+        }
+
+        $weights = array_map(fn (Product $p) => $this->popularityOf($p), $pool);
+        $picked = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $total = array_sum($weights);
+            if ($total <= 0.0) {
+                break;
+            }
+
+            $threshold = mt_rand() / mt_getrandmax() * $total;
+            $running = 0.0;
+            foreach ($pool as $index => $product) {
+                $running += $weights[$index];
+                if ($running >= $threshold) {
+                    $picked[] = $product;
+                    // Drawing without replacement: zero the weight instead of reindexing.
+                    $weights[$index] = 0.0;
+                    break;
+                }
+            }
+        }
+
+        return $picked;
     }
 
     /**

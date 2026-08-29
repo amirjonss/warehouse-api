@@ -55,6 +55,25 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
+    /** Cancelling is final: re-posting would write the goods off a second time. */
+    public function testIncorrectPostCancelledWriteoff(): void
+    {
+        $client = $this->createAdminClientWithCredentials();
+        $productIri = $this->productIri('Test Product USD 1');
+        $stockBefore = (float) $client->request(Request::METHOD_GET, $productIri)->toArray()['remainingQty'];
+
+        $writeoffIri = $this->createDraftWriteoff($client);
+        $this->addWriteoffItem($client, $writeoffIri, 'Test Product USD 1', 'B-0002', '5.000');
+        $this->changeStatus($client, $writeoffIri, 'posted');
+        $this->changeStatus($client, $writeoffIri, 'cancelled');
+
+        $this->changeStatus($client, $writeoffIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        $stockAfter = (float) $client->request(Request::METHOD_GET, $productIri)->toArray()['remainingQty'];
+        $this->assertSame($stockBefore, $stockAfter);
+    }
+
     public function testIncorrectChangeStatusByRole(): void
     {
         $writeoffIri = $this->createDraftWriteoff($this->createAdminClientWithCredentials());

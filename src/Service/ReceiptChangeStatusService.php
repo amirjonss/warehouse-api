@@ -44,6 +44,12 @@ class ReceiptChangeStatusService
             throw new ReceiptStatusTransitionException('A posted receipt cannot be moved back to draft.');
         }
 
+        if ($previousStatus === DocStatus::CANCELLED) {
+            throw new ReceiptStatusTransitionException(
+                'Отменённый приход нельзя провести заново — создайте новый документ.'
+            );
+        }
+
         if ($previousStatus === DocStatus::POSTED && $newStatus === DocStatus::CANCELLED) {
             return $this->cancel($receipt, $previousStatus);
         }

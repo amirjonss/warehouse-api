@@ -108,4 +108,23 @@ class ChangeStatusApiTest extends BaseApiTestCase
 
         $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
     }
+
+    /** Cancelling is final: re-posting would collect the same cash into the current session. */
+    public function testIncorrectPostCancelledPayment(): void
+    {
+        $client = $this->createSalesClientWithCredentials();
+        $this->openCashSession($client);
+        $saleIri = $this->findIriBy(Sale::class, ['number' => 'SL-00001']);
+
+        $paymentIri = $this->createDraftPayment($client, 'Test Client 2', '50.00');
+        $this->allocate($client, $paymentIri, '50.00');
+        $this->changeStatus($client, $paymentIri, 'posted');
+        $this->changeStatus($client, $paymentIri, 'cancelled');
+
+        $this->changeStatus($client, $paymentIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        $this->assertSame('cancelled', $client->request(Request::METHOD_GET, $paymentIri)->toArray()['status']);
+        $this->assertSame(50.0, (float) $client->request(Request::METHOD_GET, $saleIri)->toArray()['outstandingUsd']);
+    }
 }

@@ -16,6 +16,8 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use App\Component\Core\Enums\DocStatus;
+use App\Component\Sale\Dtos\SalesAnalysisDto;
+use App\Controller\SaleAnalysisAction;
 use App\Controller\SaleChangeStatusAction;
 use App\Controller\SaleCreateAction;
 use App\Controller\SaleDeleteAction;
@@ -46,6 +48,16 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(
             security: "is_granted('ROLE_SALES')",
             provider: SaleItemOutstandingProvider::class,
+        ),
+        new Post(
+            uriTemplate: '/sales/analysis',
+            controller: SaleAnalysisAction::class,
+            normalizationContext: ['skip_null_values' => false],
+            security: "is_granted('ROLE_ADMIN')",
+            input: false,
+            output: SalesAnalysisDto::class,
+            read: false,
+            name: 'salesAnalysis',
         ),
         new Post(
             controller: SaleCreateAction::class,

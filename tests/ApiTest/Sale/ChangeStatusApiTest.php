@@ -140,6 +140,31 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertCount(1, $debts);
     }
 
+    /**
+     * Cancelling is final. Re-posting used to reach post() again, which reallocates the
+     * items and so tries to delete allocations the profit entries still point at.
+     */
+    public function testIncorrectPostCancelledSale(): void
+    {
+        $client = $this->createAdminClientWithCredentials();
+        $saleIri = $this->createDraftSale($client);
+        $this->addSaleItem($client, $saleIri, 'Test Product USD 1', '5.000', '6.00');
+        $this->changeStatus($client, $saleIri, 'posted');
+        $this->changeStatus($client, $saleIri, 'cancelled');
+
+        $this->changeStatus($client, $saleIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        $this->changeStatus($client, $saleIri, 'draft');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        $this->assertSame('cancelled', $client->request(Request::METHOD_GET, $saleIri)->toArray()['status']);
+
+        // The ledger still holds exactly one entry and its reversal.
+        $debts = $client->request(Request::METHOD_GET, '/api/debts?sale=' . basename($saleIri))->toArray()['member'];
+        $this->assertCount(2, $debts);
+    }
+
     public function testIncorrectChangeStatusAnonymously(): void
     {
         $iri = $this->findIriBy(Sale::class, ['number' => 'SL-00001']);

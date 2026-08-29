@@ -54,6 +54,12 @@ class SaleChangeStatusService
             throw new SaleStatusTransitionException('A posted sale cannot be moved back to draft.');
         }
 
+        if ($previousStatus === DocStatus::CANCELLED) {
+            throw new SaleStatusTransitionException(
+                'Отменённую продажу нельзя провести заново — создайте новый документ.'
+            );
+        }
+
         if ($newStatus === DocStatus::POSTED) {
             return $this->post($sale, $previousStatus);
         }

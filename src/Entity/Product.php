@@ -13,11 +13,13 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Component\Product\Dtos\AbcAnalysisDto;
 use App\Component\Product\Dtos\ProductStockSummaryDto;
 use App\Component\Product\Dtos\TopProductsDto;
 use App\Component\Product\Enums\Currency;
 use App\Component\Product\Enums\UnitCode;
 use App\Controller\DeleteAction;
+use App\Controller\ProductAbcAnalysisAction;
 use App\Controller\ProductStockSummaryAction;
 use App\Controller\ProductTopSalesAction;
 use App\Entity\Interfaces\DeletedAtSettableInterface;
@@ -51,6 +53,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             output: TopProductsDto::class,
             read: false,
             name: 'topSales',
+        ),
+        new Post(
+            uriTemplate: '/products/abc-analysis',
+            controller: ProductAbcAnalysisAction::class,
+            normalizationContext: ['skip_null_values' => false],
+            security: "is_granted('ROLE_ADMIN')",
+            input: false,
+            output: AbcAnalysisDto::class,
+            read: false,
+            name: 'abcAnalysis',
         ),
         new Get(security: "is_granted('ROLE_SALES')"),
         new Post(security: "is_granted('ROLE_ADMIN')"),

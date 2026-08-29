@@ -40,6 +40,12 @@ class WriteoffChangeStatusService
             throw new WriteoffStatusTransitionException('A posted writeoff cannot be moved back to draft.');
         }
 
+        if ($previousStatus === DocStatus::CANCELLED) {
+            throw new WriteoffStatusTransitionException(
+                'Отменённое списание нельзя провести заново — создайте новый документ.'
+            );
+        }
+
         if ($newStatus === DocStatus::POSTED) {
             return $this->post($writeoff, $previousStatus);
         }

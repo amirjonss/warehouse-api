@@ -43,6 +43,12 @@ class PaymentChangeStatusService
             throw new PaymentStatusTransitionException('A posted payment cannot be moved back to draft.');
         }
 
+        if ($previousStatus === DocStatus::CANCELLED) {
+            throw new PaymentStatusTransitionException(
+                'Отменённый платёж нельзя провести заново — создайте новый документ.'
+            );
+        }
+
         if ($newStatus === DocStatus::POSTED) {
             return $this->post($payment, $previousStatus);
         }

@@ -120,6 +120,22 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertSame(0.0, (float) $after);
     }
 
+    /** Cancelling is final: re-posting would receive the same goods into a second batch. */
+    public function testIncorrectPostCancelledReceipt(): void
+    {
+        $client = $this->createAdminClientWithCredentials();
+        $receiptIri = $this->createDraftReceiptWithItem($client, '25.000', '3.00');
+        $this->changeStatus($client, $receiptIri, 'posted');
+        $this->changeStatus($client, $receiptIri, 'cancelled');
+
+        $this->changeStatus($client, $receiptIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        $this->assertSame('cancelled', $client->request(Request::METHOD_GET, $receiptIri)->toArray()['status']);
+        $after = $client->request(Request::METHOD_GET, $this->productIri(self::PRODUCT))->toArray()['remainingQty'];
+        $this->assertSame(0.0, (float) $after);
+    }
+
     public function testIncorrectChangeStatusByRole(): void
     {
         $iri = $this->findIriBy(Receipt::class, ['number' => 'RC-00001']);
