@@ -52,9 +52,10 @@ class CollectApiTest extends CashTestCase
         $client = $this->createSalesClientWithCredentials();
         $sessionIri = $this->openCashSession($client);
 
-        $this->collect($client, '50.00', 'USD', 'card');
+        // Card money is UZS: the business has no dollar card, so USD is cash-only.
+        $this->collect($client, '50.00', 'UZS', 'card');
 
-        $this->assertSame(0.0, (float) $this->session($client, $sessionIri)['balanceUsd']);
+        $this->assertSame(0.0, (float) $this->session($client, $sessionIri)['balanceUzs']);
         $this->assertCount(0, $this->cashEntries($client, $sessionIri), 'a card payment must not produce journal rows');
     }
 
@@ -63,13 +64,13 @@ class CollectApiTest extends CashTestCase
         $client = $this->createSalesClientWithCredentials();
         $sessionIri = $this->openCashSession($client);
 
-        $this->collect($client, '50.00', 'USD', 'card');
+        $this->collect($client, '50.00', 'UZS', 'card');
 
         $summary = $this->cashSummary($client, $sessionIri);
-        $this->assertSame(0.0, (float) $summary['balanceUsd']);
+        $this->assertSame(0.0, (float) $summary['balanceUzs']);
         $this->assertCount(1, $summary['turnover']);
         $this->assertSame('card', $summary['turnover'][0]['method']);
-        $this->assertSame('USD', $summary['turnover'][0]['currency']);
+        $this->assertSame('UZS', $summary['turnover'][0]['currency']);
         $this->assertSame(50.0, (float) $summary['turnover'][0]['total']);
         $this->assertSame(1, $summary['turnover'][0]['count']);
     }
@@ -95,7 +96,7 @@ class CollectApiTest extends CashTestCase
     {
         $client = $this->createSalesClientWithCredentials();
 
-        $paymentIri = $this->collect($client, '50.00', 'USD', 'transfer');
+        $paymentIri = $this->collect($client, '50.00', 'UZS', 'transfer');
 
         $this->assertArrayNotHasKey(
             'cashSession',

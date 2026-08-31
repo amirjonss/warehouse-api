@@ -32,6 +32,19 @@ class GetApiTest extends BaseApiTestCase
         $this->assertSame('200.00', $data['totalUsd']);
     }
 
+    public function testSuccessFilterReceiptsBySupplier(): void
+    {
+        $supplierIri = $this->supplierIri('Test Supplier 2');
+
+        $response = $this->createAdminClientWithCredentials()->request(
+            Request::METHOD_GET,
+            '/api/receipts?supplier=' . basename($supplierIri)
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->assertSame(['RC-00003'], array_column($response->toArray()['member'], 'number'));
+    }
+
     public function testIncorrectGetReceiptCollectionByRole(): void
     {
         $this->createSalesClientWithCredentials()->request(Request::METHOD_GET, '/api/receipts');

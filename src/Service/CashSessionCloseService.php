@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Component\Account\AccountEntryFactory;
+use App\Component\Account\CashAccountResolver;
+use App\Component\Account\Enums\AccountEntryKind;
+use App\Component\Account\Enums\CashAccountKind;
 use App\Component\Cash\CashEntryFactory;
 use App\Component\Cash\Exceptions\CashSessionClosedException;
 use App\Component\Cash\Exceptions\InsufficientCashException;
@@ -12,8 +16,10 @@ use App\Component\Core\Enums\CashEntryKind;
 use App\Component\Core\Enums\CashEntryStatus;
 use App\Component\Core\Enums\CashSessionStatus;
 use App\Component\Product\Enums\Currency;
+use App\Entity\CashAccount;
 use App\Entity\CashSession;
 use App\Entity\User;
+use App\Repository\CashAccountRepository;
 use App\Repository\CashEntryRepository;
 use App\Repository\CashSessionRepository;
 use DateTime;
@@ -33,6 +39,9 @@ class CashSessionCloseService
         private CashSessionRepository $cashSessionRepository,
         private CashEntryRepository $cashEntryRepository,
         private CashEntryFactory $cashEntryFactory,
+        private CashAccountRepository $cashAccountRepository,
+        private CashAccountResolver $cashAccountResolver,
+        private AccountEntryFactory $accountEntryFactory,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -58,8 +67,18 @@ class CashSessionCloseService
 
             $this->assertNoDeclaredHandovers($session);
 
+            // Both accounts are locked up front, unconditionally, so the order stays
+            // deterministic even when only one currency is actually settled. This must
+            // come after the status re-check above: a second close has to bail on the
+            // status rather than block on an account.
+            $accounts = [
+                Currency::USD->value => $this->cashAccountResolver->forKind(CashAccountKind::CASH, Currency::USD),
+                Currency::UZS->value => $this->cashAccountResolver->forKind(CashAccountKind::CASH, Currency::UZS),
+            ];
+            $this->cashAccountRepository->lockAccounts($accounts);
+
             foreach ([[Currency::USD, $acceptedUsd], [Currency::UZS, $acceptedUzs]] as [$currency, $accepted]) {
-                $this->settleCurrency($session, $currency, $accepted, $note, $closedBy);
+                $this->settleCurrency($session, $currency, $accepted, $accounts[$currency->value], $note, $closedBy);
             }
 
             $session
@@ -75,6 +94,7 @@ class CashSessionCloseService
         CashSession $session,
         Currency $currency,
         string $accepted,
+        CashAccount $account,
         ?string $note,
         User $closedBy
     ): void {
@@ -109,6 +129,19 @@ class CashSessionCloseService
             );
             $handover->setConfirmedBy($closedBy)->setConfirmedAt(new DateTime());
             $this->entityManager->persist($handover);
+
+            // The owner counted this money themselves, so it reaches the treasury at
+            // once. A shortage writes nothing here — that money never arrived.
+            $this->entityManager->persist($this->accountEntryFactory->create(
+                AccountEntryKind::HANDOVER,
+                $account,
+                $accepted,
+                $handover,
+                null,
+                null,
+                sprintf('Сдача при закрытии смены %s', $session->getNumber()),
+                $closedBy
+            ));
         }
 
         $shortage = bcsub($balance, $accepted, 2);

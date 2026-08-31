@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Component\Account\AccountEntryFactory;
+use App\Component\Account\CashAccountResolver;
+use App\Component\Account\Enums\AccountEntryKind;
+use App\Component\Account\Exceptions\InsufficientAccountBalanceException;
 use App\Component\Cash\CashEntryFactory;
 use App\Component\Cash\Exceptions\CashSessionClosedException;
 use App\Component\Cash\Exceptions\InsufficientCashException;
@@ -14,6 +18,9 @@ use App\Component\Core\Enums\PaymentMethod;
 use App\Component\Product\Enums\Currency;
 use App\Component\User\CurrentUser;
 use App\Entity\Payment;
+use App\Entity\CashAccount;
+use App\Repository\AccountEntryRepository;
+use App\Repository\CashAccountRepository;
 use App\Repository\CashEntryRepository;
 use App\Repository\CashSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +31,10 @@ class CashCollectService
         private CashSessionRepository $cashSessionRepository,
         private CashEntryRepository $cashEntryRepository,
         private CashEntryFactory $cashEntryFactory,
+        private AccountEntryRepository $accountEntryRepository,
+        private CashAccountRepository $cashAccountRepository,
+        private CashAccountResolver $cashAccountResolver,
+        private AccountEntryFactory $accountEntryFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
     ) {
@@ -39,38 +50,54 @@ class CashCollectService
         $isCash = $payment->getMethod() === PaymentMethod::CASH;
         $session = $this->cashSessionRepository->findOpenForUser($payment->getAcceptedBy());
 
-        if ($session === null) {
-            if ($isCash) {
-                throw new NoOpenSessionException(sprintf(
-                    'Нельзя принять наличные: у сотрудника %s нет открытой смены. Откройте смену и повторите.',
-                    $this->userLabel($payment)
-                ));
-            }
+        if ($session === null && $isCash) {
+            throw new NoOpenSessionException(sprintf(
+                'Нельзя принять наличные: у сотрудника %s нет открытой смены. Откройте смену и повторите.',
+                $this->userLabel($payment)
+            ));
+        }
+
+        if ($session !== null) {
+            // Card and transfer count towards the session's turnover even though they
+            // never touch its balance.
+            $payment->setCashSession($session);
+        }
+
+        if ($isCash) {
+            $this->cashSessionRepository->lockSessions([$session]);
+
+            $entry = $this->cashEntryFactory->create(
+                CashEntryKind::COLLECT,
+                $session,
+                $payment->getAmount(),
+                $payment->getCurrency(),
+                CashEntryStatus::CONFIRMED,
+                $payment,
+                null,
+                null,
+                $this->currentUser->getUser()
+            );
+
+            $this->entityManager->persist($entry);
 
             return;
         }
 
-        $payment->setCashSession($session);
+        // Card and transfer money never physically reaches the seller: it lands in the
+        // company's account the moment the payment is posted, open shift or not.
+        $account = $this->cashAccountResolver->forPayment($payment);
+        $this->cashAccountRepository->lockAccounts([$account]);
 
-        if (!$isCash) {
-            return;
-        }
-
-        $this->cashSessionRepository->lockSessions([$session]);
-
-        $entry = $this->cashEntryFactory->create(
-            CashEntryKind::COLLECT,
-            $session,
+        $this->entityManager->persist($this->accountEntryFactory->create(
+            AccountEntryKind::COLLECT,
+            $account,
             $payment->getAmount(),
-            $payment->getCurrency(),
-            CashEntryStatus::CONFIRMED,
+            null,
             $payment,
             null,
-            null,
+            sprintf('Платёж «%s»', $payment->getNumber()),
             $this->currentUser->getUser()
-        );
-
-        $this->entityManager->persist($entry);
+        ));
     }
 
     /**
@@ -84,6 +111,12 @@ class CashCollectService
 
     private function doReverse(Payment $payment): void
     {
+        if ($payment->getMethod() !== PaymentMethod::CASH) {
+            $this->reverseNonCash($payment);
+
+            return;
+        }
+
         $session = $payment->getCashSession();
         if ($session === null) {
             return;
@@ -126,6 +159,63 @@ class CashCollectService
 
             $this->entityManager->persist($entry);
         }
+    }
+
+    /**
+     * A cancelled card or transfer payment takes the money back out of the account it
+     * landed in. Same shape as the cash path: the row is not deleted, the opposite one
+     * is appended.
+     */
+    private function reverseNonCash(Payment $payment): void
+    {
+        $outstanding = '0';
+        foreach ($this->accountEntryRepository->findByPayment($payment) as $entry) {
+            $outstanding = bcadd($outstanding, $entry->getAmount(), 2);
+        }
+
+        if (bccomp($outstanding, '0', 2) === 0) {
+            // Never landed anywhere, or already reversed: no second row.
+            return;
+        }
+
+        $account = $this->cashAccountResolver->forPayment($payment);
+        $this->cashAccountRepository->lockAccounts([$account]);
+
+        $this->assertMoneyStillOnAccount($payment, $account, $outstanding);
+
+        $this->entityManager->persist($this->accountEntryFactory->create(
+            AccountEntryKind::COLLECT,
+            $account,
+            bcmul($outstanding, '-1', 2),
+            null,
+            $payment,
+            null,
+            sprintf('Сторно платежа «%s»', $payment->getNumber()),
+            $this->currentUser->getUser()
+        ));
+    }
+
+    /**
+     * The money may already have been moved on — deposited at the bank, spent on a
+     * supplier. Taking it back out would push the account below zero, and a negative
+     * treasury balance means the system is lying about the money.
+     */
+    private function assertMoneyStillOnAccount(Payment $payment, CashAccount $account, string $amount): void
+    {
+        if (bccomp($account->getBalance() ?? '0', $amount, 2) >= 0) {
+            return;
+        }
+
+        throw new InsufficientAccountBalanceException(sprintf(
+            'Нельзя отменить платёж «%s»: на счёте «%s» осталось %s %s, а вернуть нужно %s %s — '
+            . 'деньги уже израсходованы или переведены.',
+            $payment->getNumber(),
+            $account->getName(),
+            $account->getBalance(),
+            $account->getCurrency()->value,
+            $amount,
+            $account->getCurrency()->value
+        ));
     }
 
     /**

@@ -8,13 +8,17 @@ use App\Component\Batch\BatchFactory;
 use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\DocumentType;
 use App\Component\Core\Enums\MovementType;
+use App\Component\Product\Enums\Currency;
 use App\Component\Receipt\Exceptions\ReceiptStatusTransitionException;
+use App\Component\SupplierDebt\SupplierDebtFactory;
 use App\Component\StockMovement\StockMovementFactory;
 use App\Component\User\CurrentUser;
 use App\Entity\Receipt;
 use App\Repository\BatchRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ReceiptRepository;
+use App\Repository\SupplierDebtRepository;
+use App\Repository\SupplierRepository;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -25,6 +29,9 @@ class ReceiptChangeStatusService
         private BatchRepository $batchRepository,
         private ProductRepository $productRepository,
         private ReceiptRepository $receiptRepository,
+        private SupplierRepository $supplierRepository,
+        private SupplierDebtRepository $supplierDebtRepository,
+        private SupplierDebtFactory $supplierDebtFactory,
         private StockMovementFactory $stockMovementFactory,
         private CurrentUser $currentUser,
         private EntityManagerInterface $entityManager,
@@ -74,6 +81,7 @@ class ReceiptChangeStatusService
             $this->assertNotChangedConcurrently($receipt, $previousStatus);
 
             $this->productRepository->lockProducts($this->collectProducts($receipt));
+            $this->supplierRepository->lockSuppliers([$receipt->getSupplier()]);
 
             foreach ($receipt->getItems() as $receiptItem) {
                 if ($receiptItem->getBatch() !== null) {
@@ -97,6 +105,7 @@ class ReceiptChangeStatusService
                 $this->entityManager->persist($stockMovement);
             }
 
+            $this->recordSupplierDebtEntries($receipt, '1');
             $receipt->setPostedAt(new DateTime());
 
             return $receipt;
@@ -120,6 +129,7 @@ class ReceiptChangeStatusService
             $this->assertNotChangedConcurrently($receipt, $previousStatus);
 
             $this->productRepository->lockProducts($this->collectProducts($receipt));
+            $this->supplierRepository->lockSuppliers([$receipt->getSupplier()]);
             $this->batchRepository->lockBatches($this->collectBatches($receipt));
 
             foreach ($receipt->getItems() as $receiptItem) {
@@ -131,6 +141,16 @@ class ReceiptChangeStatusService
                     ));
                 }
             }
+
+            if ($this->supplierDebtRepository->isPaid($receipt)) {
+                throw new ReceiptStatusTransitionException(sprintf(
+                    'Приход «%s» уже частично или полностью оплачен поставщику — отменить его нельзя. '
+                    . 'Сначала отмените оплату поставщику.',
+                    $receipt->getNumber()
+                ));
+            }
+
+            $this->recordSupplierDebtEntries($receipt, '-1');
 
             foreach ($receipt->getItems() as $receiptItem) {
                 $batch = $receiptItem->getBatch();
@@ -155,6 +175,30 @@ class ReceiptChangeStatusService
 
             return $receipt;
         });
+    }
+
+    /**
+     * Posting a receipt opens what we owe the supplier; cancelling writes the mirror.
+     * The totals are per currency and only non-zero ones produce a row, exactly as the
+     * customer side does in SaleChangeStatusService.
+     */
+    private function recordSupplierDebtEntries(Receipt $receipt, string $sign): void
+    {
+        foreach ([[Currency::USD, $receipt->getTotalUsd()], [Currency::UZS, $receipt->getTotalUzs()]] as [$currency, $total]) {
+            if (bccomp($total ?? '0', '0', 2) <= 0) {
+                continue;
+            }
+
+            $this->entityManager->persist($this->supplierDebtFactory->create(
+                DocumentType::RECEIPT,
+                $receipt->getSupplier(),
+                $receipt,
+                null,
+                bcmul($total, $sign, 2),
+                $currency,
+                $this->currentUser->getUser()
+            ));
+        }
     }
 
     private function collectBatches(Receipt $receipt): array

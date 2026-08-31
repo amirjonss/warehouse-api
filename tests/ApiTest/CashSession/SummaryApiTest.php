@@ -18,7 +18,8 @@ class SummaryApiTest extends CashTestCase
         $client = $this->createSalesClientWithCredentials();
         $sessionIri = $this->openCashSession($client);
         $this->collect($client, '50.00', 'USD', 'cash');
-        $this->collect($client, '30.00', 'USD', 'card');
+        // Card money is UZS: there is no dollar card, so USD is only ever cash.
+        $this->collect($client, '30.00', 'UZS', 'card');
         $this->declareHandover($client, $sessionIri, '20.00');
 
         $summary = $this->cashSummary($client, $sessionIri);
@@ -41,14 +42,22 @@ class SummaryApiTest extends CashTestCase
     {
         $client = $this->createSalesClientWithCredentials();
         $sessionIri = $this->openCashSession($client);
-        $paymentIri = $this->collect($client, '50.00', 'USD', 'card');
+        $paymentIri = $this->collect($client, '50.00', 'UZS', 'card');
 
         $this->assertCount(1, $this->cashSummary($client, $sessionIri)['turnover']);
+
+        // The treasury is admin-only, so the account side is checked as the owner.
+        $owner = $this->createAdminClientWithCredentials();
+        $cardAccount = $this->accountIri('card', 'UZS');
+        $this->assertSame(50.0, (float) $this->accountBalance($owner, $cardAccount));
 
         $this->changeStatus($client, $paymentIri, 'cancelled');
         $this->assertStatus(Response::HTTP_OK, $client);
 
         $this->assertCount(0, $this->cashSummary($client, $sessionIri)['turnover']);
+        // Cancelling takes the money back off the card account, by a compensating row.
+        $this->assertSame(0.0, (float) $this->accountBalance($owner, $cardAccount));
+        $this->assertAccountJournalMatchesBalance($owner, $cardAccount);
     }
 
     public function testIncorrectReadSomebodyElsesSummary(): void

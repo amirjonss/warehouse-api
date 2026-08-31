@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace App\Component\PaymentAllocation;
 
-use App\Component\Product\Enums\Currency;
+use App\Component\Core\AmountClosedCalculator;
 use App\Entity\PaymentAllocation;
 
 class PaymentAllocationCalculator
 {
+    public function __construct(private readonly AmountClosedCalculator $amountClosedCalculator)
+    {
+    }
+
     public function calculateAmountClosed(PaymentAllocation $allocation): string
     {
-        $payment = $allocation->getPayment();
-
-        if ($allocation->getCurrency() === $payment->getCurrency()) {
-            return $allocation->getAmountSpent();
-        }
-
-        if ($allocation->getCurrency() === Currency::USD) {
-            return bcdiv($allocation->getAmountSpent(), $allocation->getPayRate(), 2);
-        }
-
-        return bcmul($allocation->getAmountSpent(), $allocation->getPayRate(), 2);
+        return $this->amountClosedCalculator->calculate(
+            $allocation->getCurrency(),
+            $allocation->getPayment()->getCurrency(),
+            $allocation->getAmountSpent(),
+            $allocation->getPayRate()
+        );
     }
 }

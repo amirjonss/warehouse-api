@@ -7,7 +7,10 @@ namespace App\Tests\ApiTest;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\DataFixtures\UserFixtures;
+use App\Component\Account\Enums\CashAccountKind;
+use App\Component\Product\Enums\Currency;
 use App\Entity\Batch;
+use App\Entity\CashAccount;
 use App\Entity\Client as ClientEntity;
 use App\Entity\Product;
 use App\Entity\Sale;
@@ -301,19 +304,36 @@ class BaseApiTestCase extends ApiTestCase
         return $response->toArray(false);
     }
 
+    /**
+     * An expense has to name the money it came out of: a seller's own open float, or —
+     * for the owner — a company account passed here.
+     */
     protected function createExpense(
         Client $client,
         string $docDate,
         string $amount,
         string $description = 'Test expense',
         string $currency = 'UZS',
+        ?string $accountIri = null,
     ): string {
         return $this->createAndGetIri($client, '/api/expenses', [
             'docDate' => $docDate,
             'description' => $description,
             'amount' => $amount,
             'currency' => $currency,
+            'account' => $accountIri,
         ]);
+    }
+
+    /**
+     * Puts money on an account through the real opening-balance endpoint rather than a
+     * fixture back door, so tests that spend it drive the production path.
+     */
+    protected function fund(Client $admin, string $accountIri, string $amount): array
+    {
+        return $admin->request(Request::METHOD_POST, $accountIri . '/opening_balance', [
+            'body' => json_encode(['amount' => $amount, 'note' => 'Тестовый остаток']),
+        ])->toArray(false);
     }
 
     // ---------------------------------------------------------------------
@@ -373,6 +393,67 @@ class BaseApiTestCase extends ApiTestCase
             (float) $session['balanceUzs'],
             $sums['UZS'],
             'UZS: the journal drifted away from the session\'s denormalised balance'
+        );
+    }
+
+    /** A treasury account is addressed by its (kind, currency) pair, never by id. */
+    protected function accountIri(string $kind, string $currency): string
+    {
+        $criteria = [
+            'kind' => CashAccountKind::from($kind),
+            'currency' => Currency::from($currency),
+        ];
+
+        $iri = $this->findIriBy(CashAccount::class, $criteria);
+
+        // findIriBy leaves the account managed, and under test the API shares this
+        // kernel's entity manager: a GET issued after money moved would otherwise be
+        // served the stale copy, with the balance from before the write. Detaching it
+        // sends every later read back to the database, so the helper is safe to call
+        // before or after a write.
+        $manager = static::getContainer()->get('doctrine')->getManager();
+        $account = $manager->getRepository(CashAccount::class)->findOneBy($criteria);
+        if ($account !== null) {
+            $manager->detach($account);
+        }
+
+        return $iri;
+    }
+
+    protected function accountBalance(Client $client, string $accountIri): string
+    {
+        return (string) $client->request(Request::METHOD_GET, $accountIri)->toArray()['balance'];
+    }
+
+    /**
+     * Journal rows of one account, oldest first.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function accountEntries(Client $client, string $accountIri): array
+    {
+        return $client->request(
+            Request::METHOD_GET,
+            '/api/account_entries?account=' . basename($accountIri) . '&order[id]=asc'
+        )->toArray(false)['member'] ?? [];
+    }
+
+    /**
+     * The treasury counterpart of assertCashJournalMatchesBalance(): the denormalised
+     * balance on the account must equal the sum of its journal. An account holds one
+     * currency, so there is nothing to split here.
+     */
+    protected function assertAccountJournalMatchesBalance(Client $client, string $accountIri): void
+    {
+        $sum = 0.0;
+        foreach ($this->accountEntries($client, $accountIri) as $entry) {
+            $sum += (float) $entry['amount'];
+        }
+
+        $this->assertSame(
+            (float) $this->accountBalance($client, $accountIri),
+            $sum,
+            'the journal drifted away from the account\'s denormalised balance'
         );
     }
 

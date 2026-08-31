@@ -29,7 +29,7 @@ class HasDebtFilter implements FilterInterface
                 'property' => null,
                 'type' => 'bool',
                 'required' => false,
-                'description' => 'Filter to clients where debtUsd > 0 or debtUzs > 0.',
+                'description' => 'Keeps only rows where debtUsd > 0 or debtUzs > 0.',
             ],
         ];
     }

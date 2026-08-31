@@ -280,6 +280,7 @@ ask:install                    first-run setup (waits for DB, deploys, generates
 ask:deploy                     migrations + cache + permissions; run after every git pull
 ask:generate:jwtKeys           regenerate the JWT keypair (drops the existing one)
 ask:users:create               create a user, interactive or fully via options
+ask:products:create            margarine catalog (12 SKUs); skips names that already exist
 ask:roles:add-to-user          grant a role
 ask:roles:delete-from-user     revoke a role
 ask:roles:show-user-roles      list a user's roles

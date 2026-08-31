@@ -113,10 +113,19 @@ class Expense
     #[Assert\NotNull]
     private ?Currency $currency = null;
 
+    /**
+     * Where the money came from. Exactly one of the two is ever set: a seller spends out
+     * of their own float, the owner out of a company account. Which one it is, is decided
+     * in CashExpenseService.
+     */
     #[ORM\ManyToOne]
     #[ApiProperty(writable: false)]
     #[Groups(['expenses:read'])]
     private ?CashSession $cashSession = null;
+
+    #[ORM\ManyToOne]
+    #[Groups(['expenses:write', 'expenses:read'])]
+    private ?CashAccount $account = null;
 
     public function getId(): ?int
     {
@@ -203,6 +212,18 @@ class Expense
     public function setCashSession(?CashSession $cashSession): static
     {
         $this->cashSession = $cashSession;
+
+        return $this;
+    }
+
+    public function getAccount(): ?CashAccount
+    {
+        return $this->account;
+    }
+
+    public function setAccount(?CashAccount $account): static
+    {
+        $this->account = $account;
 
         return $this;
     }

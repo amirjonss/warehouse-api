@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\PaymentMethod;
+use App\Component\Account\Enums\CashAccountKind;
 use App\Component\Expense\ExpenseFactory;
 use App\Component\Payment\PaymentFactory;
 use App\Component\Product\Enums\Currency;
@@ -31,10 +32,12 @@ use App\Entity\Supplier;
 use App\Entity\User;
 use App\Entity\WriteoffItem;
 use App\Repository\BatchRepository;
+use App\Repository\CashAccountRepository;
 use App\Repository\CashSessionRepository;
 use App\Repository\ClientRepository;
 use App\Repository\StockMovementRepository;
 use App\Repository\UserRepository;
+use App\Service\CashAccountOpeningBalanceService;
 use App\Service\CashExpenseService;
 use App\Service\CashHandoverService;
 use App\Service\CashSessionCloseService;
@@ -200,6 +203,8 @@ class AskDemoSeedCommand extends Command
         private StockMovementRepository $stockMovementRepository,
         private ClientRepository $clientRepository,
         private CashSessionRepository $cashSessionRepository,
+        private CashAccountRepository $cashAccountRepository,
+        private CashAccountOpeningBalanceService $cashAccountOpeningBalanceService,
         private UserFactory $userFactory,
         private UserManager $userManager,
         private PaymentFactory $paymentFactory,
@@ -304,6 +309,9 @@ class AskDemoSeedCommand extends Command
         $io->section('Списания');
         $this->impersonate($actor);
         $this->seedWriteoffs($io, $actor, $counts['writeoffs'], $windowStart, $windowEnd);
+
+        $io->section('Начальные остатки по счетам');
+        $this->seedOpeningBalances($io, $actor);
 
         $io->section('Расходы компании');
         $this->seedCompanyExpenses($io, $actor, $counts['expenses'], $windowStart, $windowEnd);
@@ -812,8 +820,43 @@ class AskDemoSeedCommand extends Command
     }
 
     /**
-     * Expenses with nobody's float behind them — the administrator paying for the office.
-     * The float's own expenses are generated later, inside the sessions.
+     * What the safe and the accounts held on the day the system went live. Nothing can be
+     * spent from an account before this exists, so it runs ahead of every payout.
+     */
+    private function seedOpeningBalances(SymfonyStyle $io, User $actor): void
+    {
+        $this->impersonate($actor);
+
+        $opening = [
+            [CashAccountKind::CASH, Currency::UZS, '300000000.00'],
+            [CashAccountKind::CASH, Currency::USD, '50000.00'],
+            [CashAccountKind::CARD, Currency::UZS, '20000000.00'],
+            [CashAccountKind::BANK, Currency::UZS, '100000000.00'],
+        ];
+
+        $created = 0;
+        foreach ($opening as [$kind, $currency, $amount]) {
+            $account = $this->cashAccountRepository->findByKindAndCurrency($kind, $currency);
+            if ($account === null) {
+                continue;
+            }
+
+            try {
+                $this->cashAccountOpeningBalanceService->set($account, $amount, 'Начальный остаток', $actor);
+                $created++;
+            } catch (\Throwable) {
+                // Already entered on an earlier run: it is a one-shot by design.
+                $this->entityManager->clear();
+                $this->impersonate($actor);
+            }
+        }
+
+        $io->text(sprintf('Заведено начальных остатков: %d', $created));
+    }
+
+    /**
+     * The administrator paying for the office out of the company's cash. A seller's own
+     * expenses are generated later, inside their sessions, and come out of their bag.
      */
     private function seedCompanyExpenses(SymfonyStyle $io, User $actor, int $count, DateTime $windowStart, DateTime $windowEnd): void
     {
@@ -826,24 +869,26 @@ class AskDemoSeedCommand extends Command
                 ? number_format(random_int(20, 400) + random_int(0, 99) / 100, 2, '.', '')
                 : (string) (random_int(80, 3000) * 1000) . '.00';
 
+            $account = $this->cashAccountRepository->findByKindAndCurrency(CashAccountKind::CASH, $currency);
+
             $expense = $this->expenseFactory->create(
                 $actor,
                 $this->randomFrom(self::EXPENSE_REASONS),
                 $amount,
                 $currency,
-                $this->randomDate($windowStart, $windowEnd)
+                $this->randomDate($windowStart, $windowEnd),
+                $account
             );
 
-            // Straight through the entity manager: the administrator has no open float, and
-            // CashExpenseService would simply pass it through anyway.
-            $this->entityManager->persist($expense);
-            $created++;
-
-            if ($created % 50 === 0) {
-                $this->entityManager->flush();
+            try {
+                $this->cashExpenseService->create($expense);
+                $created++;
+            } catch (\Throwable) {
+                // The account ran dry: stop rather than pretend the money was there.
+                $this->entityManager->clear();
+                break;
             }
         }
-        $this->entityManager->flush();
 
         $io->text(sprintf('Создано расходов компании: %d', $created));
     }
@@ -962,7 +1007,7 @@ class AskDemoSeedCommand extends Command
                 $client,
                 $amount,
                 $currency,
-                $this->randomPaymentMethod(),
+                $this->randomPaymentMethod($currency),
                 null,
                 null,
                 '',
@@ -1219,8 +1264,14 @@ class AskDemoSeedCommand extends Command
         return $client === null ? null : [$client, (string) $row['debt']];
     }
 
-    private function randomPaymentMethod(): PaymentMethod
+    private function randomPaymentMethod(Currency $currency): PaymentMethod
     {
+        // There is no dollar card and no currency bank account, so dollars can only ever
+        // be taken as cash. Picking the method after the currency keeps the seed valid.
+        if ($currency === Currency::USD) {
+            return PaymentMethod::CASH;
+        }
+
         // Cash dominates in this trade, but the other two have to be present: they are what
         // shows the difference between the session's turnover and the money on hand.
         return match (random_int(1, 10)) {

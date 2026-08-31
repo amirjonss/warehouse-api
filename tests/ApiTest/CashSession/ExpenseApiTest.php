@@ -75,16 +75,56 @@ class ExpenseApiTest extends CashTestCase
         $this->assertSame(600000.0, (float) $this->session($client, $sessionIri)['balanceUzs']);
     }
 
-    /** With no session the expense stays an ordinary company expense and never touches cash. */
-    public function testSuccessExpenseWithoutSessionIsNotTiedToCash(): void
+    /**
+     * Before the treasury existed a sessionless expense was simply recorded and no money
+     * left anything. Now there is somewhere for it to leave from, so an expense with no
+     * source would overstate the company's cash for good — it is refused instead.
+     */
+    public function testIncorrectSellerExpenseWithoutASession(): void
     {
         $client = $this->createSalesClientWithCredentials();
 
-        $expenseIri = $this->createExpense($client, '2026-08-25', '30.00', 'Fuel', 'USD');
-        $expense = $client->request(Request::METHOD_GET, $expenseIri)->toArray();
+        $this->createExpenseRaw($client, '30.00', 'USD');
 
-        $this->assertNull($this->iriOf($expense['cashSession'] ?? null));
-        $this->assertCount(0, $client->request(Request::METHOD_GET, '/api/cash_entries')->toArray()['member']);
+        $this->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY, $client);
+        $this->assertStringContainsString('нет открытой смены', $this->detail($client));
+        $this->assertCount(0, $client->request(Request::METHOD_GET, '/api/expenses')->toArray()['member']);
+    }
+
+    /**
+     * The owner spends out of the treasury, which is a different pot: no seller's float
+     * moves, and the money leaves the account instead.
+     */
+    public function testSuccessOwnerExpenseFromAnAccountLeavesFloatsAlone(): void
+    {
+        $seller = $this->createSalesClientWithCredentials();
+        $sessionIri = $this->openCashSession($seller);
+        $this->collect($seller, '50.00');
+
+        $owner = $this->createAdminClientWithCredentials();
+        $accountIri = $this->accountIri('cash', 'UZS');
+        $this->fund($owner, $accountIri, '1000000.00');
+
+        $this->createExpense($owner, '2026-08-25', '250000.00', 'Аренда', 'UZS', $accountIri);
+        $this->assertStatus(Response::HTTP_CREATED, $owner);
+
+        $this->assertSame(750000.0, (float) $this->accountBalance($owner, $accountIri));
+        $this->assertSame(50.0, (float) $this->session($seller, $sessionIri)['balanceUsd']);
+        $this->assertCount(1, $this->cashEntries($seller, $sessionIri));
+        $this->assertAccountJournalMatchesBalance($owner, $accountIri);
+    }
+
+    /** Raw POST: the helper asserts a 201, and here the point is that there is none. */
+    private function createExpenseRaw(\ApiPlatform\Symfony\Bundle\Test\Client $client, string $amount, string $currency): void
+    {
+        $client->request(Request::METHOD_POST, '/api/expenses', [
+            'body' => json_encode([
+                'docDate' => '2026-08-25',
+                'description' => 'Fuel',
+                'amount' => $amount,
+                'currency' => $currency,
+            ]),
+        ]);
     }
 
     public function testSuccessDeletingAnExpenseReturnsTheMoney(): void

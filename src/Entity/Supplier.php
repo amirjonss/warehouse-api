@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -11,7 +14,9 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\SupplierDeleteAction;
+use App\Filter\HasDebtFilter;
 use App\Repository\SupplierRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -31,11 +36,14 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
 
 )]
+#[ApiFilter(HasDebtFilter::class)]
+#[ApiFilter(OrderFilter::class, properties: ['debtUsd', 'debtUzs', 'name'])]
 class Supplier
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['batch:read', 'receipts:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -56,6 +64,15 @@ class Supplier
     #[ORM\Column]
     #[Assert\NotNull]
     private ?bool $isActive = null;
+
+    /** What we owe this supplier. SupplierDebtFactory is the only writer. */
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[ApiProperty(writable: false)]
+    private ?string $debtUsd = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 2)]
+    #[ApiProperty(writable: false)]
+    private ?string $debtUzs = '0.00';
 
     public function getId(): ?int
     {
@@ -118,6 +135,30 @@ class Supplier
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function getDebtUsd(): ?string
+    {
+        return $this->debtUsd;
+    }
+
+    public function setDebtUsd(string $debtUsd): static
+    {
+        $this->debtUsd = $debtUsd;
+
+        return $this;
+    }
+
+    public function getDebtUzs(): ?string
+    {
+        return $this->debtUzs;
+    }
+
+    public function setDebtUzs(string $debtUzs): static
+    {
+        $this->debtUzs = $debtUzs;
 
         return $this;
     }

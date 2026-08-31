@@ -12,10 +12,14 @@ class SummaryApiTest extends BaseApiTestCase
 {
     public function testSuccessGetExpenseSummary(): void
     {
-        $client = $this->createSalesClientWithCredentials();
-        $this->createExpense($client, '2026-08-25', '100.00');
-        $this->createExpense($client, '2026-08-26', '40.50');
-        $this->createExpense($client, '2026-08-26', '7.00', 'Test expense', 'USD');
+        $client = $this->createAdminClientWithCredentials();
+        $account = $this->accountIri('cash', 'UZS');
+        $this->fund($client, $account, '1000000.00');
+        $usdAccount = $this->accountIri('cash', 'USD');
+        $this->fund($client, $usdAccount, '1000.00');
+        $this->createExpense($client, '2026-08-25', '100.00', 'Test expense', 'UZS', $account);
+        $this->createExpense($client, '2026-08-26', '40.50', 'Test expense', 'UZS', $account);
+        $this->createExpense($client, '2026-08-26', '7.00', 'Test expense', 'USD', $usdAccount);
 
         $response = $client->request(Request::METHOD_POST, '/api/expenses/summary');
 

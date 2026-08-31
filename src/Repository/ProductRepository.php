@@ -19,6 +19,16 @@ class ProductRepository extends ServiceEntityRepository
         parent::__construct($registry, Product::class);
     }
 
+    public function findOneActiveByName(string $name): ?Product
+    {
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.name = :name')
+            ->andWhere('p.deletedAt IS NULL')
+            ->setParameter('name', $name)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function lockProducts(array $products): void
     {
         $unique = [];

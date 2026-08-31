@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\ApiTest\Receipt;
 
 use ApiPlatform\Symfony\Bundle\Test\Client;
+use App\Component\Account\Enums\CashAccountKind;
+use App\Component\Product\Enums\Currency;
+use App\Entity\CashAccount;
 use App\Entity\Receipt;
 use App\Tests\ApiTest\BaseApiTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -134,6 +137,45 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertSame('cancelled', $client->request(Request::METHOD_GET, $receiptIri)->toArray()['status']);
         $after = $client->request(Request::METHOD_GET, $this->productIri(self::PRODUCT))->toArray()['remainingQty'];
         $this->assertSame(0.0, (float) $after);
+    }
+
+    /** Cancelling a paid receipt would strand the payment that closed it. */
+    public function testIncorrectCancelAPaidReceipt(): void
+    {
+        $client = $this->createAdminClientWithCredentials();
+        $receiptIri = $this->createDraftReceiptWithItem($client, '25.000', '3.00');
+        $this->changeStatus($client, $receiptIri, 'posted');
+
+        $accountIri = $this->findIriBy(CashAccount::class, [
+            'kind' => CashAccountKind::CASH,
+            'currency' => Currency::USD,
+        ]);
+        $client->request(Request::METHOD_POST, $accountIri . '/opening_balance', [
+            'body' => json_encode(['amount' => '1000.00']),
+        ]);
+
+        $paymentIri = $this->createAndGetIri($client, '/api/supplier_payments', [
+            'docDate' => '2026-08-20',
+            'supplier' => $this->supplierIri('Test Supplier 1'),
+            'account' => $accountIri,
+            'amount' => '75.00',
+            'currency' => 'USD',
+        ]);
+        $client->request(Request::METHOD_POST, '/api/supplier_payment_allocations', [
+            'body' => json_encode([
+                'supplierPayment' => $paymentIri,
+                'receipt' => $receiptIri,
+                'currency' => 'USD',
+                'amountSpent' => '75.00',
+            ]),
+        ]);
+        $this->changeStatus($client, $paymentIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $this->changeStatus($client, $receiptIri, 'cancelled');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $this->assertSame('posted', $client->request(Request::METHOD_GET, $receiptIri)->toArray()['status']);
     }
 
     public function testIncorrectChangeStatusByRole(): void

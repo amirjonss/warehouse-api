@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Component\Expense;
 
 use App\Component\Product\Enums\Currency;
+use App\Entity\CashAccount;
 use App\Entity\Expense;
 use App\Entity\User;
 use DateTime;
@@ -17,7 +18,8 @@ class ExpenseFactory
         string $description,
         string $amount,
         Currency $currency,
-        ?DateTimeInterface $docDate = null
+        ?DateTimeInterface $docDate = null,
+        ?CashAccount $account = null
     ): Expense {
         $expense = new Expense();
         $expense
@@ -26,7 +28,8 @@ class ExpenseFactory
             ->setDocDate($docDate ?? new DateTime())
             ->setDescription($description)
             ->setAmount($amount)
-            ->setCurrency($currency);
+            ->setCurrency($currency)
+            ->setAccount($account);
 
         return $expense;
     }

@@ -10,6 +10,7 @@ use App\Component\User\CurrentUser;
 use App\Controller\Base\AbstractController;
 use App\Entity\Expense;
 use App\Service\CashExpenseService;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class ExpenseCreateAction extends AbstractController
@@ -26,20 +27,24 @@ class ExpenseCreateAction extends AbstractController
 
     public function __invoke(Expense $data): Expense
     {
-        // The factory expects non-empty values, so validate before calling it: a missing
-        // currency would otherwise raise a TypeError — a 500 instead of a clear 422.
         $this->validate($data);
+
+        // Sellers spend what is in their own bag; the company's accounts are the owner's.
+        if ($data->getAccount() !== null && !$this->isGranted('ROLE_ADMIN')) {
+            throw new AccessDeniedHttpException(
+                'Расход со счёта компании может провести только владелец — тратьте из своей смены.'
+            );
+        }
 
         $expense = $this->expenseFactory->create(
             $this->getUser(),
             $data->getDescription(),
             $data->getAmount(),
             $data->getCurrency(),
-            $data->getDocDate()
+            $data->getDocDate(),
+            $data->getAccount()
         );
 
-        // If the employee has an open session, the money leaves their cash on hand: the
-        // service checks the balance and appends a row to the cash journal.
         return $this->cashExpenseService->create($expense);
     }
 }

@@ -10,4 +10,5 @@ enum DocumentType: string
     case SALE = 'sale';
     case WRITEOFF = 'writeoff';
     case PAYMENT = 'payment';
+    case SUPPLIER_PAYMENT = 'supplier_payment';
 }

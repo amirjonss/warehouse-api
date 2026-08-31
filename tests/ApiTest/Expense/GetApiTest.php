@@ -12,8 +12,10 @@ class GetApiTest extends BaseApiTestCase
 {
     public function testSuccessGetExpenseCollection(): void
     {
-        $client = $this->createSalesClientWithCredentials();
-        $this->createExpense($client, '2026-08-25', '100.00');
+        $client = $this->createAdminClientWithCredentials();
+        $account = $this->accountIri('cash', 'UZS');
+        $this->fund($client, $account, '1000000.00');
+        $this->createExpense($client, '2026-08-25', '100.00', 'Test expense', 'UZS', $account);
 
         $response = $client->request(Request::METHOD_GET, '/api/expenses');
 
@@ -23,9 +25,11 @@ class GetApiTest extends BaseApiTestCase
 
     public function testSuccessFilterExpensesByDocDate(): void
     {
-        $client = $this->createSalesClientWithCredentials();
-        $this->createExpense($client, '2026-08-25', '100.00');
-        $this->createExpense($client, '2026-07-01', '40.00');
+        $client = $this->createAdminClientWithCredentials();
+        $account = $this->accountIri('cash', 'UZS');
+        $this->fund($client, $account, '1000000.00');
+        $this->createExpense($client, '2026-08-25', '100.00', 'Test expense', 'UZS', $account);
+        $this->createExpense($client, '2026-07-01', '40.00', 'Test expense', 'UZS', $account);
 
         $response = $client->request(Request::METHOD_GET, '/api/expenses?docDate[after]=2026-08-01');
 

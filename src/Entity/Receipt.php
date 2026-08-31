@@ -8,6 +8,7 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -19,6 +20,8 @@ use App\Controller\ReceiptCreateAction;
 use App\Controller\ReceiptChangeStatusAction;
 use App\Controller\ReceiptDeleteAction;
 use App\Repository\ReceiptRepository;
+use App\State\ReceiptCollectionOutstandingProvider;
+use App\State\ReceiptItemOutstandingProvider;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -32,14 +35,18 @@ use Symfony\Component\Serializer\Attribute\Groups;
     operations: [
         new GetCollection(
             security: "is_granted('ROLE_ADMIN')",
+            provider: ReceiptCollectionOutstandingProvider::class,
             parameters: [
                 'docDate' => new QueryParameter(
                     filter: new DateFilter(),
                     property: 'docDate'
                 ),
-            ]
+            ],
         ),
-        new Get(security: "is_granted('ROLE_ADMIN')"),
+        new Get(
+            security: "is_granted('ROLE_ADMIN')",
+            provider: ReceiptItemOutstandingProvider::class,
+        ),
         new Post(
             controller: ReceiptCreateAction::class,
             security: "is_granted('ROLE_ADMIN')",
@@ -59,7 +66,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
     denormalizationContext: ['groups' => ['receipts:write']],
     paginationItemsPerPage: 20,
 )]
-#[ApiFilter(SearchFilter::class, properties: ['number' => 'exact', 'supplier.name' => 'partial'])]
+#[ApiFilter(SearchFilter::class, properties: [
+        'number' => 'exact',
+        'supplier' => 'exact',
+        'supplier.name' => 'ipartial',
+    ])]
 #[ApiFilter(OrderFilter::class, properties: ['docDate', 'id'])]
 class Receipt
 {
@@ -117,6 +128,15 @@ class Receipt
     #[ORM\OneToMany(targetEntity: ReceiptItem::class, mappedBy: 'receipt', orphanRemoval: true)]
     #[Groups(['receipts:read'])]
     private Collection $items;
+
+    /** Not mapped: filled per page from the supplier_debts ledger by the enricher. */
+    #[ApiProperty(writable: false)]
+    #[Groups(['receipts:read'])]
+    private ?string $outstandingUsd = null;
+
+    #[ApiProperty(writable: false)]
+    #[Groups(['receipts:read'])]
+    private ?string $outstandingUzs = null;
 
     public function __construct()
     {
@@ -273,6 +293,30 @@ class Receipt
                 $item->setReceipt(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getOutstandingUsd(): ?string
+    {
+        return $this->outstandingUsd;
+    }
+
+    public function setOutstandingUsd(?string $outstandingUsd): static
+    {
+        $this->outstandingUsd = $outstandingUsd;
+
+        return $this;
+    }
+
+    public function getOutstandingUzs(): ?string
+    {
+        return $this->outstandingUzs;
+    }
+
+    public function setOutstandingUzs(?string $outstandingUzs): static
+    {
+        $this->outstandingUzs = $outstandingUzs;
 
         return $this;
     }

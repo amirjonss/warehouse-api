@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Component\Account\AccountEntryFactory;
+use App\Component\Account\CashAccountResolver;
+use App\Component\Account\Enums\AccountEntryKind;
+use App\Component\Account\Enums\CashAccountKind;
 use App\Component\Cash\CashEntryFactory;
 use App\Component\Cash\Exceptions\CashEntryNotConfirmableException;
 use App\Component\Cash\Exceptions\CashSessionClosedException;
@@ -14,6 +18,7 @@ use App\Component\Product\Enums\Currency;
 use App\Entity\CashEntry;
 use App\Entity\CashSession;
 use App\Entity\User;
+use App\Repository\CashAccountRepository;
 use App\Repository\CashSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -22,6 +27,9 @@ class CashHandoverService
     public function __construct(
         private CashSessionRepository $cashSessionRepository,
         private CashEntryFactory $cashEntryFactory,
+        private CashAccountRepository $cashAccountRepository,
+        private CashAccountResolver $cashAccountResolver,
+        private AccountEntryFactory $accountEntryFactory,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -73,7 +81,26 @@ class CashHandoverService
             $this->assertOpen($session);
             $this->cashSessionRepository->lockSessions([$session]);
 
-            return $this->cashEntryFactory->confirm($entry, $confirmedBy);
+            $this->cashEntryFactory->confirm($entry, $confirmedBy);
+
+            // Only now is the money the company's: until the owner acknowledges it, it
+            // is in transit and lives in the session's "unconfirmed" figure.
+            $account = $this->cashAccountResolver->forKind(CashAccountKind::CASH, $entry->getCurrency());
+            $this->cashAccountRepository->lockAccounts([$account]);
+
+            $this->entityManager->persist($this->accountEntryFactory->create(
+                AccountEntryKind::HANDOVER,
+                $account,
+                // The handover row is negative — the seller lost it, the treasury gains it.
+                bcmul($entry->getAmount(), '-1', 2),
+                $entry,
+                null,
+                null,
+                sprintf('Сдача из смены %s', $session->getNumber()),
+                $confirmedBy
+            ));
+
+            return $entry;
         });
     }
 

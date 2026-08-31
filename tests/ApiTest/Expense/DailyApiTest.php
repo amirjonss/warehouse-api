@@ -12,10 +12,12 @@ class DailyApiTest extends BaseApiTestCase
 {
     public function testSuccessGetDailyExpenses(): void
     {
-        $client = $this->createSalesClientWithCredentials();
-        $this->createExpense($client, '2026-08-25', '100.00');
-        $this->createExpense($client, '2026-08-25', '20.00');
-        $this->createExpense($client, '2026-08-26', '40.00');
+        $client = $this->createAdminClientWithCredentials();
+        $account = $this->accountIri('cash', 'UZS');
+        $this->fund($client, $account, '1000000.00');
+        $this->createExpense($client, '2026-08-25', '100.00', 'Test expense', 'UZS', $account);
+        $this->createExpense($client, '2026-08-25', '20.00', 'Test expense', 'UZS', $account);
+        $this->createExpense($client, '2026-08-26', '40.00', 'Test expense', 'UZS', $account);
 
         $response = $client->request(Request::METHOD_POST, '/api/expenses/daily');
 
