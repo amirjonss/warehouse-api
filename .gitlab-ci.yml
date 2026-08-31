@@ -68,6 +68,7 @@ api-test:
         - bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=test
         - bin/console doctrine:fixtures:load --no-interaction --env=test
         - composer test:api
+        - composer test:integration
 
 deploy-prod-job:
     stage: deploy
