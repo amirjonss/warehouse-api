@@ -9,55 +9,52 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Posting a count sheet books the discrepancy against the batches that were counted.
+ * Posting a count sheet spreads each product's difference over that product's batches.
  *
- * Fixture stock for Test Product USD 1 is 140: B-0001 = 90, B-0002 = 50.
+ * Fixture stock for Test Product USD 1 is 140: B-0001 = 90 (the older layer, 2.00) and
+ * B-0002 = 50 (2.50).
  */
 class ChangeStatusApiTest extends BaseApiTestCase
 {
-    public function testSuccessPostShortageReducesStock(): void
+    /** Missing goods are the ones that were due to leave next — taken off the oldest batch. */
+    public function testSuccessPostShortageComesOffTheOldestBatch(): void
     {
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $this->postCount('Test Product USD 1', '135.000');
 
         $admin = $this->createAdminClientWithCredentials();
-        $this->changeStatus($admin, $inventoryIri, 'posted');
-        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
-
         $productIri = $this->productIri('Test Product USD 1');
         $this->assertSame(135.0, $this->productStock($admin, $productIri));
 
-        // Only the counted batch moved; its neighbour is untouched.
         $batches = $this->batchesOf($admin, $productIri);
-        $this->assertSame(90.0, (float) $batches[0]['remainingQty']);
-        $this->assertSame(45.0, (float) $batches[1]['remainingQty']);
+        $this->assertSame(85.0, (float) $batches[0]['remainingQty'], 'B-0001 is the front of the queue.');
+        $this->assertSame(50.0, (float) $batches[1]['remainingQty'], 'B-0002 is untouched.');
 
         $movements = $this->adjustments($admin, $productIri);
         $this->assertCount(1, $movements);
         $this->assertSame(-5.0, (float) $movements[0]['quantity']);
+        $this->assertSame('B-0001', $movements[0]['batch']['number']);
         $this->assertSame('inventory', $movements[0]['docType']);
     }
 
-    /** A surplus goes back where it was missing from — never into a brand new batch. */
-    public function testSuccessPostSurplusGoesBackOnTheSameBatch(): void
+    /** Found goods rejoin the queue where they left it: the same oldest batch, at its own cost. */
+    public function testSuccessPostSurplusGoesOntoTheOldestBatch(): void
     {
         $admin = $this->createAdminClientWithCredentials();
         $batchesBefore = $admin->request(Request::METHOD_GET, '/api/batches')->toArray()['totalItems'];
 
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '53.000');
-
-        $this->changeStatus($admin, $inventoryIri, 'posted');
+        $this->postCount('Test Product USD 1', '145.000');
 
         $productIri = $this->productIri('Test Product USD 1');
-        $this->assertSame(143.0, $this->productStock($admin, $productIri));
-        $this->assertSame(53.0, (float) $this->batchesOf($admin, $productIri)[1]['remainingQty']);
+        $this->assertSame(145.0, $this->productStock($admin, $productIri));
+
+        $batches = $this->batchesOf($admin, $productIri);
+        $this->assertSame(95.0, (float) $batches[0]['remainingQty']);
+        $this->assertSame(50.0, (float) $batches[1]['remainingQty']);
 
         $movements = $this->adjustments($admin, $productIri);
         $this->assertCount(1, $movements);
-        $this->assertSame(3.0, (float) $movements[0]['quantity']);
+        $this->assertSame(5.0, (float) $movements[0]['quantity']);
+        $this->assertSame('B-0001', $movements[0]['batch']['number']);
 
         $this->assertSame(
             $batchesBefore,
@@ -66,19 +63,61 @@ class ChangeStatusApiTest extends BaseApiTestCase
         );
     }
 
+    /** A shortage bigger than the front layer spills into the next one, exactly like a sale. */
+    public function testSuccessPostShortageSpillsIntoTheNextBatch(): void
+    {
+        $this->postCount('Test Product USD 1', '45.000');
+
+        $admin = $this->createAdminClientWithCredentials();
+        $productIri = $this->productIri('Test Product USD 1');
+        $this->assertSame(45.0, $this->productStock($admin, $productIri));
+
+        $batches = $this->batchesOf($admin, $productIri);
+        $this->assertSame(0.0, (float) $batches[0]['remainingQty'], 'B-0001 is emptied first.');
+        $this->assertSame(45.0, (float) $batches[1]['remainingQty'], 'B-0002 covers the rest.');
+
+        $movements = $this->adjustments($admin, $productIri);
+        $this->assertCount(2, $movements);
+        $this->assertSame(-90.0, (float) $movements[0]['quantity']);
+        $this->assertSame('B-0001', $movements[0]['batch']['number']);
+        $this->assertSame(-5.0, (float) $movements[1]['quantity']);
+        $this->assertSame('B-0002', $movements[1]['batch']['number']);
+    }
+
+    /** With the front layer exhausted, the surplus lands on the next batch that still has stock. */
+    public function testSuccessPostSurplusSkipsExhaustedBatches(): void
+    {
+        $admin = $this->createAdminClientWithCredentials();
+        $writeoffIri = $this->createDraftWriteoff($admin);
+        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0001', '90.000');
+        $this->changeStatus($admin, $writeoffIri, 'posted');
+
+        // 50 left, all of it in B-0002; the count finds 55.
+        $this->postCount('Test Product USD 1', '55.000');
+
+        $productIri = $this->productIri('Test Product USD 1');
+        $batches = $this->batchesOf($admin, $productIri);
+        $this->assertSame(0.0, (float) $batches[0]['remainingQty']);
+        $this->assertSame(55.0, (float) $batches[1]['remainingQty']);
+
+        $movements = $this->adjustments($admin, $productIri);
+        $this->assertCount(1, $movements);
+        $this->assertSame('B-0002', $movements[0]['batch']['number']);
+    }
+
     /** "Counted and it matched" is evidence worth keeping, but it moves nothing. */
     public function testSuccessPostZeroDiffLineCreatesNoMovement(): void
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0001', '90.000');
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '140.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 2', '75.000');
 
         $admin = $this->createAdminClientWithCredentials();
         $this->changeStatus($admin, $inventoryIri, 'posted');
 
-        $productIri = $this->productIri('Test Product USD 1');
-        $this->assertCount(1, $this->adjustments($admin, $productIri));
+        $this->assertCount(0, $this->adjustments($admin, $this->productIri('Test Product USD 1')));
+        $this->assertCount(1, $this->adjustments($admin, $this->productIri('Test Product USD 2')));
 
         // Both lines survive, including the one that produced nothing.
         $this->assertCount(2, $this->inventoryItems($admin, $inventoryIri));
@@ -88,7 +127,7 @@ class ChangeStatusApiTest extends BaseApiTestCase
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '140.000');
 
         $admin = $this->createAdminClientWithCredentials();
         $this->changeStatus($admin, $inventoryIri, 'posted');
@@ -105,25 +144,22 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $admin = $this->createAdminClientWithCredentials();
         $before = $this->moneyLedgerCounts($admin);
 
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '53.000');
-        $this->changeStatus($admin, $inventoryIri, 'posted');
+        $this->postCount('Test Product USD 1', '145.000');
 
-        $this->assertSame($before, $this->moneyLedgerCounts($admin));
+        $this->assertSame($before, $this->moneyLedgerCounts($this->createAdminClientWithCredentials()));
     }
 
     /**
-     * The discrepancy belongs to the moment of the count. Ten units legitimately left B-0002
-     * afterwards, so posting must subtract 2 (48 counted against a snapshot of 50) and leave
-     * the writeoff standing, ending at 38 — not restore the batch to the 48 that were seen.
+     * The discrepancy belongs to the moment of the count. Ten units legitimately left afterwards,
+     * so posting subtracts 2 (138 counted against a snapshot of 140) and leaves the writeoff
+     * standing, ending at 128 — not restoring the product to the 138 that were seen.
      */
     public function testSuccessPostUsesTheSnapshotNotLiveStock(): void
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $line = $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002');
-        $this->assertSame(50.0, (float) $line['expectedQty']);
+        $line = $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1');
+        $this->assertSame(140.0, (float) $line['expectedQty']);
 
         $admin = $this->createAdminClientWithCredentials();
         $writeoffIri = $this->createDraftWriteoff($admin);
@@ -131,7 +167,7 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->changeStatus($admin, $writeoffIri, 'posted');
 
         $sales->request(Request::METHOD_PATCH, $line['@id'], [
-            'body' => json_encode(['actualQty' => '48.000']),
+            'body' => json_encode(['actualQty' => '138.000']),
             'headers' => ['content-type' => self::MERGE_PATCH],
         ]);
         $this->assertResponseIsSuccessful();
@@ -140,7 +176,7 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
         $productIri = $this->productIri('Test Product USD 1');
-        $this->assertSame(38.0, (float) $this->batchesOf($admin, $productIri)[1]['remainingQty']);
+        $this->assertSame(128.0, $this->productStock($admin, $productIri));
 
         $movements = $this->adjustments($admin, $productIri);
         $this->assertCount(1, $movements);
@@ -148,25 +184,37 @@ class ChangeStatusApiTest extends BaseApiTestCase
     }
 
     /**
-     * A counted figure cannot be negative, but the delta lands on the live remainder: counting
-     * zero against a snapshot of 50 after 45 were written off would drive the batch to -45.
+     * A counted figure cannot be negative, but the delta lands on the live stock: counting zero
+     * against a snapshot of 140 after 100 were written off would need 140 units that are not there.
      */
-    public function testIncorrectPostWhenShortageWouldMakeBatchNegative(): void
+    public function testIncorrectPostWhenShortageExceedsLiveStock(): void
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '0.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '0.000');
 
         $admin = $this->createAdminClientWithCredentials();
         $writeoffIri = $this->createDraftWriteoff($admin);
-        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0001', '90.000');
+        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0002', '10.000');
         $this->changeStatus($admin, $writeoffIri, 'posted');
 
         $this->changeStatus($admin, $inventoryIri, 'posted');
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $productIri = $this->productIri('Test Product USD 1');
-        $this->assertSame(5.0, (float) $this->batchesOf($admin, $productIri)[1]['remainingQty']);
+        $this->assertSame(40.0, $this->productStock($admin, $this->productIri('Test Product USD 1')));
+    }
+
+    /** A product that was never received has no batch to carry the adjustment. */
+    public function testIncorrectPostForProductWithoutBatches(): void
+    {
+        $sales = $this->createSalesClientWithCredentials();
+        $inventoryIri = $this->createDraftInventory($sales);
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product No Stock', '7.000');
+
+        $this->changeStatus($this->createAdminClientWithCredentials(), $inventoryIri, 'posted');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     /** A half-finished sheet must not be read as "everything else is missing". */
@@ -194,12 +242,9 @@ class ChangeStatusApiTest extends BaseApiTestCase
 
     public function testIncorrectPostCancelledInventory(): void
     {
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $inventoryIri = $this->postCount('Test Product USD 1', '135.000');
 
         $admin = $this->createAdminClientWithCredentials();
-        $this->changeStatus($admin, $inventoryIri, 'posted');
         $this->changeStatus($admin, $inventoryIri, 'cancelled');
 
         $this->changeStatus($admin, $inventoryIri, 'posted');
@@ -208,53 +253,50 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->assertSame(140.0, $this->productStock($admin, $this->productIri('Test Product USD 1')));
     }
 
-    public function testSuccessCancelReversesAdjustments(): void
+    /** The mirror follows the journal, so it lands on the very batches the posting touched. */
+    public function testSuccessCancelReversesTheBatchesThePostingTouched(): void
     {
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $inventoryIri = $this->postCount('Test Product USD 1', '45.000');
 
         $admin = $this->createAdminClientWithCredentials();
-        $this->changeStatus($admin, $inventoryIri, 'posted');
         $this->changeStatus($admin, $inventoryIri, 'cancelled');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
         $productIri = $this->productIri('Test Product USD 1');
-        $this->assertSame(50.0, (float) $this->batchesOf($admin, $productIri)[1]['remainingQty']);
+        $batches = $this->batchesOf($admin, $productIri);
+        $this->assertSame(90.0, (float) $batches[0]['remainingQty']);
+        $this->assertSame(50.0, (float) $batches[1]['remainingQty']);
 
-        // Both rows stand: a cancellation appends the mirror, it never deletes history.
+        // Four rows stand: a cancellation appends the mirror, it never deletes history.
         $movements = $this->adjustments($admin, $productIri);
-        $this->assertCount(2, $movements);
-        $this->assertSame(-5.0, (float) $movements[0]['quantity']);
-        $this->assertSame(5.0, (float) $movements[1]['quantity']);
+        $this->assertCount(4, $movements);
+        $this->assertSame(90.0, (float) $movements[2]['quantity']);
+        $this->assertSame('B-0001', $movements[2]['batch']['number']);
+        $this->assertSame(5.0, (float) $movements[3]['quantity']);
+        $this->assertSame('B-0002', $movements[3]['batch']['number']);
     }
 
     /** Reversing a surplus that has since been sold would drive the batch negative. */
     public function testIncorrectCancelSurplusAlreadySold(): void
     {
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '62.000');
+        $inventoryIri = $this->postCount('Test Product USD 1', '152.000');
 
         $admin = $this->createAdminClientWithCredentials();
-        $this->changeStatus($admin, $inventoryIri, 'posted');
-
         $writeoffIri = $this->createDraftWriteoff($admin);
-        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0002', '60.000');
+        $this->addWriteoffItem($admin, $writeoffIri, 'Test Product USD 1', 'B-0001', '100.000');
         $this->changeStatus($admin, $writeoffIri, 'posted');
 
         $this->changeStatus($admin, $inventoryIri, 'cancelled');
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $productIri = $this->productIri('Test Product USD 1');
-        $this->assertSame(2.0, (float) $this->batchesOf($admin, $productIri)[1]['remainingQty']);
+        $this->assertSame(52.0, $this->productStock($admin, $this->productIri('Test Product USD 1')));
     }
 
     public function testIncorrectChangeStatusByRole(): void
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '135.000');
 
         $this->changeStatus($sales, $inventoryIri, 'posted');
 
@@ -268,6 +310,19 @@ class ChangeStatusApiTest extends BaseApiTestCase
         $this->changeStatus($this->createAnonymousClient(), $inventoryIri, 'posted');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    /** Counts one product and posts it, returning the document's IRI. */
+    private function postCount(string $productName, string $actualQty): string
+    {
+        $sales = $this->createSalesClientWithCredentials();
+        $inventoryIri = $this->createDraftInventory($sales);
+        $this->addInventoryItem($sales, $inventoryIri, $productName, $actualQty);
+
+        $this->changeStatus($this->createAdminClientWithCredentials(), $inventoryIri, 'posted');
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        return $inventoryIri;
     }
 
     private function productStock(object $client, string $productIri): float

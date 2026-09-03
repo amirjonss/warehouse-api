@@ -23,10 +23,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\UniqueConstraint(name: 'uniq_batches_product_number', columns: ['product_id', 'number'])]
 #[ApiResource(
     operations: [
-        // A seller has to be able to see what batches exist to count them; the purchase price
-        // stays behind ROLE_ADMIN at property level, the way SaleItemAllocation hides its cost.
-        new GetCollection(security: "is_granted('ROLE_SALES')"),
-        new Get(security: "is_granted('ROLE_SALES')"),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
     ],
     normalizationContext: ['groups' => ['batch:read']],
     paginationItemsPerPage: 20,
@@ -38,11 +36,11 @@ class Batch
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read', 'inventories:read'])]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read', 'inventories:read'])]
+    #[Groups(['batch:read', 'sale-item:read', 'writeoffs:read', 'stock-movements:read'])]
     private ?string $number = null;
 
     #[ORM\ManyToOne]
@@ -59,7 +57,6 @@ class Batch
     private ?string $initialQty = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 2)]
-    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     #[Groups(['batch:read', 'writeoffs:read'])]
     private ?string $purchasePrice = null;
 
@@ -68,7 +65,6 @@ class Batch
     private ?Currency $currency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4, nullable: true)]
-    #[ApiProperty(security: "is_granted('ROLE_ADMIN')")]
     #[Groups('batch:read')]
     private ?string $rateSell = null;
 
@@ -84,7 +80,7 @@ class Batch
 
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
     #[ApiProperty(writable: false)]
-    #[Groups(['batch:read', 'inventories:read'])]
+    #[Groups('batch:read')]
     private ?string $remainingQty = '0.000';
 
     public function getId(): ?int

@@ -64,36 +64,39 @@ class InventoryRepository extends ServiceEntityRepository
     }
 
     /**
-     * The batches a count sheet should cover, with their live ledger quantity.
+     * The products a count sheet should cover, with their live ledger quantity.
      *
-     * The remainder is summed from stock_movements rather than read off Batch.remainingQty: the
-     * cached column is only ever as fresh as the last posting, and a snapshot that starts out
-     * stale would produce a fake discrepancy. Batches already on the sheet are excluded, so
-     * calling fill twice is safe and never touches a count somebody has already entered.
+     * The remainder is summed from stock_movements rather than read off Product.remainingQty:
+     * the cached column is only ever as fresh as the last posting, and a snapshot that starts
+     * out stale would produce a fake discrepancy. Products already on the sheet are excluded,
+     * so calling fill twice is safe and never touches a count somebody has already entered.
      *
-     * @return array<int, array{batch_id: int, product_id: int, expected_qty: string}>
+     * Only products that were ever received are offered — a stocktake adjusts existing batches,
+     * and a product without any has nothing to adjust.
+     *
+     * @return array<int, array{product_id: int, expected_qty: string}>
      */
-    public function findCountableBatchRows(
+    public function findCountableProductRows(
         Inventory $inventory,
         ?int $categoryId,
         bool $includeZeroStock,
         int $limit
     ): array {
         $sql = <<<'SQL'
-            SELECT b.id AS batch_id, b.product_id AS product_id, COALESCE(sm.qty, 0)::text AS expected_qty
-            FROM batches b
-            JOIN product p ON p.id = b.product_id
+            SELECT p.id AS product_id, COALESCE(sm.qty, 0)::text AS expected_qty
+            FROM product p
             LEFT JOIN (
-                SELECT batch_id, SUM(quantity) AS qty FROM stock_movements GROUP BY batch_id
-            ) sm ON sm.batch_id = b.id
+                SELECT product_id, SUM(quantity) AS qty FROM stock_movements GROUP BY product_id
+            ) sm ON sm.product_id = p.id
             WHERE p.deleted_at IS NULL
+              AND EXISTS (SELECT 1 FROM batches b WHERE b.product_id = p.id)
               AND (:category::int IS NULL OR p.category_id = :category::int)
               AND (:includeZeroStock OR COALESCE(sm.qty, 0) > 0)
               AND NOT EXISTS (
                   SELECT 1 FROM inventory_items ii
-                  WHERE ii.inventory_id = :inventory AND ii.batch_id = b.id
+                  WHERE ii.inventory_id = :inventory AND ii.product_id = p.id
               )
-            ORDER BY p.name, b.received_at, b.id
+            ORDER BY p.name
             LIMIT :limit
             SQL;
 

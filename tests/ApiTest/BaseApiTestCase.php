@@ -120,14 +120,6 @@ class BaseApiTestCase extends ApiTestCase
         return $this->findIriBy(Category::class, ['name' => $name]);
     }
 
-    protected function batchIri(string $productName, string $batchNumber): string
-    {
-        return $this->findIriBy(Batch::class, [
-            'number' => $batchNumber,
-            'product' => (int) basename($this->productIri($productName)),
-        ]);
-    }
-
     // ---------------------------------------------------------------------
     // Document builders. Every document in this domain follows the same
     // draft -> items -> change_status shape, so building one is worth sharing.
@@ -246,20 +238,19 @@ class BaseApiTestCase extends ApiTestCase
     }
 
     /**
-     * One counted batch. A null quantity is the "line created, nobody counted yet" state.
+     * One counted product — everything of it across every batch. A null quantity is the
+     * "line created, nobody counted yet" state.
      */
     protected function addInventoryItem(
         Client $client,
         string $inventoryIri,
         string $productName,
-        string $batchNumber,
         ?string $actualQty = null,
     ): array {
         $response = $client->request(Request::METHOD_POST, '/api/inventory_items', [
             'body' => json_encode([
                 'inventory' => $inventoryIri,
                 'product' => $this->productIri($productName),
-                'batch' => $this->batchIri($productName, $batchNumber),
                 'actualQty' => $actualQty,
             ]),
         ]);
@@ -340,8 +331,8 @@ class BaseApiTestCase extends ApiTestCase
     ): array {
         $productIri = $this->productIri($productName);
 
-        // Resolved straight from the database rather than over HTTP: it keeps the helper
-        // usable from the "wrong role" cases, which must not depend on a readable endpoint.
+        // Resolved straight from the database rather than over HTTP: /api/batches is
+        // admin-only, and this helper is also used to drive the "wrong role" cases.
         $batchIri = $this->findIriBy(Batch::class, [
             'number' => $batchNumber,
             'product' => (int) basename($productIri),

@@ -57,35 +57,6 @@ class GetApiTest extends BaseApiTestCase
         $this->assertJsonContains(['@id' => $batches[0]['@id'], 'number' => 'B-0001']);
     }
 
-    /** A seller has to see the batches to count them during a stocktake. */
-    public function testSuccessSalesCanListBatches(): void
-    {
-        $response = $this->createSalesClientWithCredentials()->request(Request::METHOD_GET, '/api/batches');
-
-        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
-        $this->assertSame(4, $response->toArray()['totalItems']);
-    }
-
-    /** What we paid the supplier is not the seller's business, so it is hidden per property. */
-    public function testSuccessPurchasePriceIsHiddenFromSales(): void
-    {
-        $productIri = $this->productIri('Test Product USD 1');
-        $uri = '/api/batches?product=' . basename($productIri) . '&order[receivedAt]=asc';
-
-        $forSales = $this->createSalesClientWithCredentials()->request(Request::METHOD_GET, $uri)
-            ->toArray()['member'][0];
-        $forAdmin = $this->createAdminClientWithCredentials()->request(Request::METHOD_GET, $uri)
-            ->toArray()['member'][0];
-
-        $this->assertArrayNotHasKey('purchasePrice', $forSales);
-        $this->assertArrayNotHasKey('rateSell', $forSales);
-        // The seller still gets everything the count needs.
-        $this->assertSame('B-0001', $forSales['number']);
-        $this->assertSame(90.0, (float) $forSales['remainingQty']);
-
-        $this->assertSame('2.00', $forAdmin['purchasePrice']);
-    }
-
     public function testIncorrectGetBatchCollectionAnonymously(): void
     {
         $this->createAnonymousClient()->request(Request::METHOD_GET, '/api/batches');

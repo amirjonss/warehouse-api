@@ -7,7 +7,6 @@ namespace App\Service;
 use App\Component\Inventory\Exceptions\InventoryFillTooLargeException;
 use App\Component\Inventory\InventoryAccess;
 use App\Component\InventoryItem\InventoryItemFactory;
-use App\Entity\Batch;
 use App\Entity\Inventory;
 use App\Entity\Product;
 use App\Repository\InventoryRepository;
@@ -35,7 +34,7 @@ class InventoryFillService
 
         $categoryId ??= $inventory->getCategory()?->getId();
 
-        $rows = $this->inventoryRepository->findCountableBatchRows(
+        $rows = $this->inventoryRepository->findCountableProductRows(
             $inventory,
             $categoryId,
             $includeZeroStock,
@@ -44,16 +43,15 @@ class InventoryFillService
 
         if (count($rows) > self::MAX_LINES) {
             throw new InventoryFillTooLargeException(sprintf(
-                'Слишком много партий для одного заполнения (больше %d). Выберите категорию.',
+                'Слишком много товаров для одного заполнения (больше %d). Выберите категорию.',
                 self::MAX_LINES
             ));
         }
 
         foreach ($rows as $row) {
-            $this->entityManager->persist($this->inventoryItemFactory->createForBatch(
+            $this->entityManager->persist($this->inventoryItemFactory->createForProduct(
                 $inventory,
                 $this->entityManager->getReference(Product::class, (int) $row['product_id']),
-                $this->entityManager->getReference(Batch::class, (int) $row['batch_id']),
                 $row['expected_qty']
             ));
         }

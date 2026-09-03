@@ -38,6 +38,44 @@ class BatchRepository extends ServiceEntityRepository
         return $result['number'] ?? null;
     }
 
+    /**
+     * A product's batches in FIFO order, oldest first, each with its live remaining quantity.
+     *
+     * This is the queue a stocktake adjusts: a shortage is taken from the front, a surplus is
+     * put back at the front. Quantities are summed from the journal, not read off the cached
+     * column, because the caller is about to decide how much each batch can absorb.
+     *
+     * @return array<int, array{batch: Batch, remainingQty: string}>
+     */
+    public function findFifoQueue(Product $product): array
+    {
+        /** @var Batch[] $batches */
+        $batches = $this->createQueryBuilder('b')
+            ->andWhere('b.product = :product')
+            ->setParameter('product', $product)
+            ->orderBy('b.receivedAt', 'ASC')
+            ->addOrderBy('b.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        if ($batches === []) {
+            return [];
+        }
+
+        $sums = $this->getEntityManager()->getConnection()->fetchAllKeyValue(
+            'SELECT batch_id, SUM(quantity)::text FROM stock_movements WHERE product_id = :product GROUP BY batch_id',
+            ['product' => $product->getId()]
+        );
+
+        return array_map(
+            static fn (Batch $batch): array => [
+                'batch' => $batch,
+                'remainingQty' => (string) ($sums[$batch->getId()] ?? '0'),
+            ],
+            $batches
+        );
+    }
+
     public function isUsed(Batch $batch): bool
     {
         return bccomp($this->computeLiveRemainingQty($batch), $batch->getInitialQty(), 3) !== 0;

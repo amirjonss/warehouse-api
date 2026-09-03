@@ -42,11 +42,13 @@ document can only be cancelled, never edited back into a draft.
 - **Payment** — money coming in, in cash, by card or by transfer. It is allocated across the
   client's unsettled sales (`PaymentAllocation`), and posting reduces their debt.
 - **Writeoff** — goods removed from a named batch (expiry, damage).
-- **Inventory** — a stocktake. Each line is one batch with the ledger quantity snapshotted when
-  the line was created and the quantity actually counted; posting books the difference as an
-  `adjust` movement in whichever direction it falls. A surplus goes back onto the batch it was
-  missing from, so no batch is invented and no payable to a supplier appears. The seller counts,
-  the owner posts.
+- **Inventory** — a stocktake. Each line is one **product**, because that is what a warehouse can
+  actually count: new stock is stacked behind the old and the batches of one margarine are
+  indistinguishable on the shelf. The line carries the ledger quantity snapshotted when it was
+  created and the quantity actually counted, and posting spreads the difference over that
+  product's batches — FIFO off the oldest batch with stock for a shortage, all onto that same
+  batch for a surplus. No batch is invented and no payable to a supplier appears. The seller
+  counts, the owner posts.
 - **Expense** — money going out, in its own currency.
 
 ### Ledgers
@@ -122,8 +124,7 @@ summary with turnover by payment method, and an "on hand across all sellers" til
 
 **Access control** — `ROLE_ADMIN` inherits `ROLE_SALES`. Sellers work with documents; only an owner
 closes a float, confirms a hand-in, reads somebody else's float or count sheet, posts a stocktake,
-or sees the company-wide cash tile. Sellers can list batches — they have to, to count them — but
-`purchasePrice` and `rateSell` are hidden from them per property.
+or sees the company-wide cash tile.
 
 **Concurrency** — every posting path takes pessimistic locks in a fixed order and re-reads the
 denormalised totals under the lock, so two simultaneous requests cannot spend the same money twice
@@ -154,7 +155,7 @@ POST /api/receipts/{id}/change_status    draft -> posted -> cancelled
 POST /api/sales/{id}/change_status
 POST /api/writeoffs/{id}/change_status
 POST /api/inventories/{id}/change_status  seller counts, owner posts
-POST /api/inventories/{id}/fill           lines for every batch with stock, optionally by category
+POST /api/inventories/{id}/fill           a line per product with stock, optionally by category
 POST /api/payments/{id}/change_status
 POST /api/payments/{id}/auto_allocate    spread over the oldest debts and post
 

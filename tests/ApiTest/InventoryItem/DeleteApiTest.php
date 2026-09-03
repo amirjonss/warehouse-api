@@ -14,7 +14,7 @@ class DeleteApiTest extends BaseApiTestCase
     {
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
-        $item = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $item = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '140.000');
 
         $client->request(Request::METHOD_DELETE, $item['@id']);
         $this->assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
@@ -26,7 +26,7 @@ class DeleteApiTest extends BaseApiTestCase
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $item = $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $item = $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '140.000');
         $this->changeStatus($this->createAdminClientWithCredentials(), $inventoryIri, 'posted');
 
         $client = $this->createSalesClientWithCredentials();
@@ -41,7 +41,7 @@ class DeleteApiTest extends BaseApiTestCase
     {
         $foreign = $this->createSecondSalesClientWithCredentials();
         $foreignInventoryIri = $this->createDraftInventory($foreign);
-        $item = $this->addInventoryItem($foreign, $foreignInventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $item = $this->addInventoryItem($foreign, $foreignInventoryIri, 'Test Product USD 1', '140.000');
 
         $this->createSalesClientWithCredentials()->request(Request::METHOD_DELETE, $item['@id']);
 

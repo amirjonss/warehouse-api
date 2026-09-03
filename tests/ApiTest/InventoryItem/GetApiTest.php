@@ -14,7 +14,7 @@ class GetApiTest extends BaseApiTestCase
     {
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
-        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '140.000');
 
         $data = $client->request(Request::METHOD_GET, '/api/inventory_items')->toArray();
 
@@ -27,16 +27,16 @@ class GetApiTest extends BaseApiTestCase
     {
         $foreign = $this->createSecondSalesClientWithCredentials();
         $foreignInventoryIri = $this->createDraftInventory($foreign);
-        $this->addInventoryItem($foreign, $foreignInventoryIri, 'Test Product USD 1', 'B-0001', '90.000');
+        $this->addInventoryItem($foreign, $foreignInventoryIri, 'Test Product USD 2', '80.000');
 
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
-        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '140.000');
 
         $data = $client->request(Request::METHOD_GET, '/api/inventory_items')->toArray();
 
         $this->assertSame(1, $data['totalItems']);
-        $this->assertSame('B-0002', $data['member'][0]['batch']['number']);
+        $this->assertSame('Test Product USD 1', $data['member'][0]['product']['name']);
     }
 
     public function testIncorrectGetInventoryItemCollectionAnonymously(): void

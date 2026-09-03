@@ -24,18 +24,22 @@ use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * One counted batch.
+ * One counted product — everything of it on the shelf, across every batch.
+ *
+ * The warehouse cannot count batches: new stock goes behind the old and the layers are
+ * indistinguishable. So the line holds one absolute figure for the product, and posting decides
+ * which batches absorb the difference.
  *
  * `expectedQty` is a snapshot of the ledger taken when the line was created, never recomputed:
  * the count is a statement about that moment, and posting applies `actualQty - expectedQty` so
  * that goods which legitimately moved during the count are not resurrected.
  *
  * `actualQty` stays null until somebody actually counts. Null means "not counted", zero means
- * "counted, the shelf is empty" — collapsing the two would write off whole batches silently.
+ * "counted, the shelf is empty" — collapsing the two would write off whole products silently.
  */
 #[ORM\Entity(repositoryClass: InventoryItemRepository::class)]
 #[ORM\Table(name: 'inventory_items')]
-#[ORM\UniqueConstraint(name: 'uniq_inventory_items_inventory_batch', columns: ['inventory_id', 'batch_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_inventory_items_inventory_product', columns: ['inventory_id', 'product_id'])]
 #[ApiResource(
     operations: [
         new GetCollection(security: "is_granted('ROLE_SALES')"),
@@ -77,14 +81,10 @@ class InventoryItem
     #[Groups(['inventory-item:write', 'inventories:read'])]
     private ?Product $product = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['inventory-item:write', 'inventories:read'])]
-    private ?Batch $batch = null;
-
     /**
-     * Filled by the factory from the movement journal. Writable would let the counter erase
-     * their own discrepancy, so the client cannot set it.
+     * The product's whole ledger quantity when the line was created, summed over its batches.
+     * Filled by the factory from the movement journal — writable would let the counter erase
+     * their own discrepancy.
      */
     #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 3)]
     #[ApiProperty(writable: false)]
@@ -121,18 +121,6 @@ class InventoryItem
     public function setProduct(?Product $product): static
     {
         $this->product = $product;
-
-        return $this;
-    }
-
-    public function getBatch(): ?Batch
-    {
-        return $this->batch;
-    }
-
-    public function setBatch(?Batch $batch): static
-    {
-        $this->batch = $batch;
 
         return $this;
     }

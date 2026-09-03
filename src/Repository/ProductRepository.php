@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Product;
+use App\Entity\StockMovement;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
@@ -27,6 +28,23 @@ class ProductRepository extends ServiceEntityRepository
             ->setParameter('name', $name)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The product's remaining quantity summed from the movement journal rather than read off
+     * the denormalised column, which is only ever as fresh as the last posting.
+     */
+    public function computeLiveRemainingQty(Product $product): string
+    {
+        $result = $this->getEntityManager()->createQueryBuilder()
+            ->select('COALESCE(SUM(sm.quantity), 0)')
+            ->from(StockMovement::class, 'sm')
+            ->andWhere('sm.product = :product')
+            ->setParameter('product', $product)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (string) $result;
     }
 
     public function lockProducts(array $products): void

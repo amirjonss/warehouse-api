@@ -15,11 +15,12 @@ class CreateApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
 
-        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '45.000');
+        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '135.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $this->assertSame(50.0, (float) $data['expectedQty']);
-        $this->assertSame(45.0, (float) $data['actualQty']);
+        // The snapshot is the whole product, 90 in B-0001 plus 50 in B-0002.
+        $this->assertSame(140.0, (float) $data['expectedQty']);
+        $this->assertSame(135.0, (float) $data['actualQty']);
         $this->assertSame(-5.0, (float) $data['diffQty']);
     }
 
@@ -28,7 +29,7 @@ class CreateApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
 
-        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002');
+        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $this->assertNull($data['actualQty']);
@@ -41,11 +42,11 @@ class CreateApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
 
-        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '0.000');
+        $data = $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '0.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $this->assertSame(0.0, (float) $data['actualQty']);
-        $this->assertSame(-50.0, (float) $data['diffQty']);
+        $this->assertSame(-140.0, (float) $data['diffQty']);
     }
 
     /** Otherwise the counter could erase their own discrepancy on the way in. */
@@ -58,14 +59,13 @@ class CreateApiTest extends BaseApiTestCase
             'body' => json_encode([
                 'inventory' => $inventoryIri,
                 'product' => $this->productIri('Test Product USD 1'),
-                'batch' => $this->batchIri('Test Product USD 1', 'B-0002'),
-                'actualQty' => '50.000',
+                'actualQty' => '140.000',
                 'expectedQty' => '1.000',
             ]),
         ]);
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $this->assertSame(50.0, (float) $response->toArray()['expectedQty']);
+        $this->assertSame(140.0, (float) $response->toArray()['expectedQty']);
     }
 
     public function testIncorrectCreateInventoryItemWithNegativeActualQty(): void
@@ -73,7 +73,7 @@ class CreateApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
 
-        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '-1.000');
+        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '-1.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
@@ -83,25 +83,8 @@ class CreateApiTest extends BaseApiTestCase
         $client = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($client);
 
-        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
-        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', 'B-0002', '49.000');
-
-        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
-    }
-
-    public function testIncorrectCreateInventoryItemWithBatchOfAnotherProduct(): void
-    {
-        $client = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($client);
-
-        $client->request(Request::METHOD_POST, '/api/inventory_items', [
-            'body' => json_encode([
-                'inventory' => $inventoryIri,
-                'product' => $this->productIri('Test Product USD 1'),
-                'batch' => $this->batchIri('Test Product USD 2', 'B-0001'),
-                'actualQty' => '10.000',
-            ]),
-        ]);
+        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '140.000');
+        $this->addInventoryItem($client, $inventoryIri, 'Test Product USD 1', '139.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
@@ -110,11 +93,11 @@ class CreateApiTest extends BaseApiTestCase
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', '140.000');
         $this->changeStatus($this->createAdminClientWithCredentials(), $inventoryIri, 'posted');
 
         $again = $this->createSalesClientWithCredentials();
-        $this->addInventoryItem($again, $inventoryIri, 'Test Product USD 1', 'B-0001', '90.000');
+        $this->addInventoryItem($again, $inventoryIri, 'Test Product USD 2', '80.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
@@ -128,7 +111,7 @@ class CreateApiTest extends BaseApiTestCase
         $foreignIri = $this->createDraftInventory($this->createSecondSalesClientWithCredentials());
 
         $client = $this->createSalesClientWithCredentials();
-        $this->addInventoryItem($client, $foreignIri, 'Test Product USD 1', 'B-0002', '50.000');
+        $this->addInventoryItem($client, $foreignIri, 'Test Product USD 1', '140.000');
 
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
     }

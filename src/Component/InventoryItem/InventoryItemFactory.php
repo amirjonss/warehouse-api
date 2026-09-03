@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Component\InventoryItem;
 
-use App\Entity\Batch;
 use App\Entity\Inventory;
 use App\Entity\InventoryItem;
 use App\Entity\Product;
-use App\Repository\BatchRepository;
+use App\Repository\ProductRepository;
 
 class InventoryItemFactory
 {
-    public function __construct(private readonly BatchRepository $batchRepository)
+    public function __construct(private readonly ProductRepository $productRepository)
     {
     }
 
@@ -22,36 +21,35 @@ class InventoryItemFactory
      */
     public function create(InventoryItem $data): InventoryItem
     {
-        $inventoryItem = new InventoryItem();
-        $inventoryItem
-            ->setInventory($data->getInventory())
-            ->setProduct($data->getProduct())
-            ->setBatch($data->getBatch())
-            ->setExpectedQty($this->batchRepository->computeLiveRemainingQty($data->getBatch()))
-            ->setActualQty($data->getActualQty());
-
-        $data->getInventory()->addItem($inventoryItem);
-
-        return $inventoryItem;
+        return $this->build(
+            $data->getInventory(),
+            $data->getProduct(),
+            $this->productRepository->computeLiveRemainingQty($data->getProduct()),
+            $data->getActualQty()
+        );
     }
 
     /**
      * The fill path already knows the ledger quantity from its own query, so it passes it in
-     * instead of making one SUM per batch.
+     * instead of making one SUM per product.
      */
-    public function createForBatch(
+    public function createForProduct(Inventory $inventory, Product $product, string $expectedQty): InventoryItem
+    {
+        return $this->build($inventory, $product, $expectedQty, null);
+    }
+
+    private function build(
         Inventory $inventory,
         Product $product,
-        Batch $batch,
-        string $expectedQty
+        string $expectedQty,
+        ?string $actualQty
     ): InventoryItem {
         $inventoryItem = new InventoryItem();
         $inventoryItem
             ->setInventory($inventory)
             ->setProduct($product)
-            ->setBatch($batch)
             ->setExpectedQty($expectedQty)
-            ->setActualQty(null);
+            ->setActualQty($actualQty);
 
         $inventory->addItem($inventoryItem);
 

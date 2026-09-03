@@ -14,12 +14,16 @@ use Doctrine\Migrations\AbstractMigration;
  * compares it against the shelf, and the difference has to become a document rather than a
  * silent edit of a remainder.
  *
- * Counting happens per batch, not per product: the batch carries the purchase price that feeds
- * FIFO, so a discrepancy booked against the wrong batch would quietly corrupt the cost of every
- * later sale. For the same reason a surplus goes back onto the batch it was missing from — a
- * receipt would invent a new batch with today's date, push found-but-old goods to the back of
- * the FIFO queue and, because posting a receipt writes to supplier_debts, raise a payable to a
- * supplier who was never involved.
+ * Counting happens per product, because that is the only thing a warehouse can actually count.
+ * Batches are a costing device, not a physical arrangement: new stock is stacked behind the old
+ * and nobody can tell one layer of the same margarine from another on the shelf. A line is
+ * therefore one product, and posting spreads the difference across that product's batches —
+ * FIFO from the oldest batch that still has stock for a shortage, all onto that same batch for
+ * a surplus, so found goods rejoin the front of the queue at the cost they left it with.
+ *
+ * A receipt could not do this job: it would invent a batch dated today, push found-but-old goods
+ * to the back of the FIFO queue and, because posting a receipt writes to supplier_debts, raise a
+ * payable to a supplier who was never involved.
  *
  * actual_qty is nullable on purpose. NULL means "not counted yet", 0 means "counted, the shelf
  * is empty". Collapsing the two would let a half-finished sheet write off every batch it never
@@ -69,7 +73,6 @@ final class Version20260903100000 extends AbstractMigration
                 id SERIAL NOT NULL,
                 inventory_id INT NOT NULL,
                 product_id INT NOT NULL,
-                batch_id INT NOT NULL,
                 expected_qty NUMERIC(14, 3) NOT NULL,
                 actual_qty NUMERIC(14, 3) DEFAULT NULL,
                 PRIMARY KEY(id)
@@ -77,11 +80,10 @@ final class Version20260903100000 extends AbstractMigration
         SQL);
         $this->addSql('CREATE INDEX idx_inventory_items_inventory ON inventory_items (inventory_id)');
         $this->addSql('CREATE INDEX idx_inventory_items_product ON inventory_items (product_id)');
-        $this->addSql('CREATE INDEX idx_inventory_items_batch ON inventory_items (batch_id)');
-        // Counting the same batch twice on one sheet is always a mistake, never a second reading.
+        // Counting the same product twice on one sheet is always a mistake, never a second reading.
         $this->addSql(<<<'SQL'
-            CREATE UNIQUE INDEX uniq_inventory_items_inventory_batch
-                ON inventory_items (inventory_id, batch_id)
+            CREATE UNIQUE INDEX uniq_inventory_items_inventory_product
+                ON inventory_items (inventory_id, product_id)
         SQL);
         // A counted figure is absolute, never a delta — a negative one is nonsense on a shelf.
         $this->addSql(<<<'SQL'
@@ -99,10 +101,6 @@ final class Version20260903100000 extends AbstractMigration
         $this->addSql(<<<'SQL'
             ALTER TABLE inventory_items ADD CONSTRAINT FK_INVITEM_PRODUCT FOREIGN KEY (product_id)
                 REFERENCES product (id) NOT DEFERRABLE INITIALLY IMMEDIATE
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE inventory_items ADD CONSTRAINT FK_INVITEM_BATCH FOREIGN KEY (batch_id)
-                REFERENCES batches (id) NOT DEFERRABLE INITIALLY IMMEDIATE
         SQL);
     }
 

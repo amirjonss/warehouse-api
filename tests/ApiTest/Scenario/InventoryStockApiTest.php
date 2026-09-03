@@ -11,13 +11,15 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * What a posted stocktake means for the rest of the system: the goods it finds are real goods,
  * the goods it loses are gone, and no money moves either way.
+ *
+ * Test Product USD 1 starts at 140 — B-0001 = 90 at 2.00, B-0002 = 50 at 2.50.
  */
 class InventoryStockApiTest extends BaseApiTestCase
 {
-    /** Found goods rejoin the batch they were missing from, at that batch's own cost. */
-    public function testSurplusIsSellableFromTheSameBatch(): void
+    /** Found goods rejoin the front of the queue, so they are the next ones sold. */
+    public function testSurplusIsSellableAndLeavesFirst(): void
     {
-        $this->postCount('B-0002', '60.000');
+        $this->postCount('Test Product USD 1', '150.000');
 
         $admin = $this->createAdminClientWithCredentials();
         $this->assertSame(150.0, $this->productStock($admin, $this->productIri('Test Product USD 1')));
@@ -28,7 +30,7 @@ class InventoryStockApiTest extends BaseApiTestCase
 
     public function testShortageRemovesGoodsFromCirculation(): void
     {
-        $this->postCount('B-0002', '40.000');
+        $this->postCount('Test Product USD 1', '130.000');
 
         $admin = $this->createAdminClientWithCredentials();
         $this->assertSame(130.0, $this->productStock($admin, $this->productIri('Test Product USD 1')));
@@ -37,13 +39,29 @@ class InventoryStockApiTest extends BaseApiTestCase
         $this->assertTrue($this->canSell($admin, '130.000'));
     }
 
+    /** A surplus is costed at the batch it joins, so the margin on it is the old batch's margin. */
+    public function testSurplusIsCostedAtTheBatchItJoins(): void
+    {
+        $this->postCount('Test Product USD 1', '150.000');
+
+        $admin = $this->createAdminClientWithCredentials();
+        $saleIri = $this->createDraftSale($admin);
+        $saleItem = $this->addSaleItem($admin, $saleIri, 'Test Product USD 1', '95.000', '5.00');
+        $this->changeStatus($admin, $saleIri, 'posted');
+
+        // 95 units all come out of B-0001, which now holds 95 after the surplus joined it.
+        $allocations = $this->saleItemAllocations($admin, $saleItem['@id']);
+        $this->assertCount(1, $allocations);
+        $this->assertSame('2.00', $allocations[0]['costPrice']);
+    }
+
     public function testInventoryNeverTouchesTheMoneyLedgers(): void
     {
         $admin = $this->createAdminClientWithCredentials();
         $before = $this->ledgerCounts($admin);
 
-        $this->postCount('B-0002', '60.000');
-        $this->postCount('B-0001', '80.000');
+        $this->postCount('Test Product USD 1', '150.000');
+        $this->postCount('Test Product USD 2', '75.000');
 
         $this->assertSame($before, $this->ledgerCounts($this->createAdminClientWithCredentials()));
     }
@@ -53,7 +71,7 @@ class InventoryStockApiTest extends BaseApiTestCase
         $admin = $this->createAdminClientWithCredentials();
         $before = $admin->request(Request::METHOD_GET, '/api/batches')->toArray()['totalItems'];
 
-        $this->postCount('B-0002', '60.000');
+        $this->postCount('Test Product USD 1', '150.000');
 
         $after = $this->createAdminClientWithCredentials()
             ->request(Request::METHOD_GET, '/api/batches')->toArray()['totalItems'];
@@ -62,18 +80,13 @@ class InventoryStockApiTest extends BaseApiTestCase
     }
 
     /**
-     * The denormalised product total is only ever the sum of its batches — the invariant that
-     * lets the posting service check non-negativity per batch and stop there.
+     * The denormalised product total is only ever the sum of its batches — the invariant the
+     * whole spreading exercise has to preserve.
      */
     public function testProductCacheMatchesTheSumOfItsBatchesAfterInventory(): void
     {
-        $sales = $this->createSalesClientWithCredentials();
-        $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0001', '85.000');
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', 'B-0002', '57.000');
-
         $admin = $this->createAdminClientWithCredentials();
-        $this->changeStatus($admin, $inventoryIri, 'posted');
+        $this->postCount('Test Product USD 1', '45.000');
 
         $productIri = $this->productIri('Test Product USD 1');
         $batches = $admin->request(
@@ -86,15 +99,15 @@ class InventoryStockApiTest extends BaseApiTestCase
             $sum += (float) $batch['remainingQty'];
         }
 
-        $this->assertSame(142.0, $sum);
+        $this->assertSame(45.0, $sum);
         $this->assertSame($sum, $this->productStock($admin, $productIri));
     }
 
-    private function postCount(string $batchNumber, string $actualQty): void
+    private function postCount(string $productName, string $actualQty): void
     {
         $sales = $this->createSalesClientWithCredentials();
         $inventoryIri = $this->createDraftInventory($sales);
-        $this->addInventoryItem($sales, $inventoryIri, 'Test Product USD 1', $batchNumber, $actualQty);
+        $this->addInventoryItem($sales, $inventoryIri, $productName, $actualQty);
 
         $this->changeStatus($this->createAdminClientWithCredentials(), $inventoryIri, 'posted');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
