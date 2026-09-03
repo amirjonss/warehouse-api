@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service;
+
+use App\Component\Inventory\InventoryAccess;
+use App\Component\InventoryItem\Exceptions\BatchProductMismatchException;
+use App\Component\InventoryItem\Exceptions\DuplicateInventoryItemException;
+use App\Entity\InventoryItem;
+use App\Repository\InventoryItemRepository;
+
+class InventoryItemValidationService
+{
+    public function __construct(
+        private readonly InventoryAccess $inventoryAccess,
+        private readonly InventoryItemRepository $inventoryItemRepository,
+    ) {
+    }
+
+    public function validate(InventoryItem $data): void
+    {
+        $this->inventoryAccess->assertEditable($data->getInventory());
+
+        if ($data->getBatch()->getProduct() !== $data->getProduct()) {
+            throw new BatchProductMismatchException(sprintf(
+                'Партия «%s» принадлежит товару «%s», а не «%s».',
+                $data->getBatch()->getNumber(),
+                $data->getBatch()->getProduct()->getName(),
+                $data->getProduct()->getName()
+            ));
+        }
+
+        $existingItem = $this->inventoryItemRepository->findOneBy([
+            'inventory' => $data->getInventory(),
+            'batch' => $data->getBatch(),
+        ]);
+
+        if ($existingItem !== null) {
+            throw new DuplicateInventoryItemException(sprintf(
+                'Партия «%s» уже есть в этой инвентаризации.',
+                $data->getBatch()->getNumber()
+            ));
+        }
+    }
+}

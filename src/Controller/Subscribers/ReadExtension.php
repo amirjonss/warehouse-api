@@ -11,6 +11,8 @@ use ApiPlatform\Metadata\Operation;
 use App\Controller\Base\AbstractController;
 use App\Entity\CashEntry;
 use App\Entity\CashSession;
+use App\Entity\Inventory;
+use App\Entity\InventoryItem;
 use App\Entity\Interfaces\DeletedAtSettableInterface;
 use Doctrine\ORM\QueryBuilder;
 
@@ -66,8 +68,9 @@ class ReadExtension extends AbstractController implements QueryCollectionExtensi
             $this->hideDeleted($queryBuilder, $rootTable);
         }
 
-        // Somebody else's cash is somebody else's money: a seller sees only their own
-        // float and its journal, an administrator sees every one of them.
+        // Somebody else's cash is somebody else's money, and somebody else's count sheet is
+        // somebody else's responsibility: a seller sees only their own, an administrator sees
+        // every one of them.
         if ($this->isAdmin()) {
             return;
         }
@@ -85,6 +88,22 @@ class ReadExtension extends AbstractController implements QueryCollectionExtensi
                     ->join("{$rootTable}.session", $alias)
                     ->andWhere("{$alias}.user = :cashUser")
                     ->setParameter('cashUser', $this->getUser());
+                break;
+
+            case Inventory::class:
+                $queryBuilder
+                    ->andWhere("{$rootTable}.createdBy = :inventoryUser")
+                    ->setParameter('inventoryUser', $this->getUser());
+                break;
+
+            // Without this the lines of a foreign sheet stay readable through
+            // /api/inventory_items even though the document itself is hidden.
+            case InventoryItem::class:
+                $alias = $rootTable . '_inventory';
+                $queryBuilder
+                    ->join("{$rootTable}.inventory", $alias)
+                    ->andWhere("{$alias}.createdBy = :inventoryUser")
+                    ->setParameter('inventoryUser', $this->getUser());
                 break;
         }
     }

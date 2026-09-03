@@ -11,4 +11,5 @@ enum DocumentType: string
     case WRITEOFF = 'writeoff';
     case PAYMENT = 'payment';
     case SUPPLIER_PAYMENT = 'supplier_payment';
+    case INVENTORY = 'inventory';
 }

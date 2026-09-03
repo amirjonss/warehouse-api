@@ -42,6 +42,11 @@ document can only be cancelled, never edited back into a draft.
 - **Payment** — money coming in, in cash, by card or by transfer. It is allocated across the
   client's unsettled sales (`PaymentAllocation`), and posting reduces their debt.
 - **Writeoff** — goods removed from a named batch (expiry, damage).
+- **Inventory** — a stocktake. Each line is one batch with the ledger quantity snapshotted when
+  the line was created and the quantity actually counted; posting books the difference as an
+  `adjust` movement in whichever direction it falls. A surplus goes back onto the batch it was
+  missing from, so no batch is invented and no payable to a supplier appears. The seller counts,
+  the owner posts.
 - **Expense** — money going out, in its own currency.
 
 ### Ledgers
@@ -91,8 +96,9 @@ extension, so another seller's session answers `404`, not `403`.
 **Reference data** — categories, products (two price lists, unit codes, min-stock levels),
 clients, suppliers, exchange rates.
 
-**Stock** — receipts with per-batch cost, FIFO allocation on sale, batch-level writeoffs, full
-movement history, stock summary and top-sales reports.
+**Stock** — receipts with per-batch cost, FIFO allocation on sale, batch-level writeoffs,
+stocktaking with autofilled count sheets, full movement history, stock summary and top-sales
+reports.
 
 **Sales analysis** — turnover per day, week or month with quantity, revenue, cost of the goods
 that left and the margin on them. Cost is taken from the profit journal rather than recomputed, so
@@ -115,7 +121,9 @@ line, expenses with daily and per-currency summaries.
 summary with turnover by payment method, and an "on hand across all sellers" tile for the owner.
 
 **Access control** — `ROLE_ADMIN` inherits `ROLE_SALES`. Sellers work with documents; only an owner
-closes a float, confirms a hand-in, reads somebody else's float, or sees the company-wide cash tile.
+closes a float, confirms a hand-in, reads somebody else's float or count sheet, posts a stocktake,
+or sees the company-wide cash tile. Sellers can list batches — they have to, to count them — but
+`purchasePrice` and `rateSell` are hidden from them per property.
 
 **Concurrency** — every posting path takes pessimistic locks in a fixed order and re-reads the
 denormalised totals under the lock, so two simultaneous requests cannot spend the same money twice
@@ -128,7 +136,8 @@ filterable by date range, search and ordering.
 
 **Resources:** `categories`, `products`, `suppliers`, `clients`, `exchange_rates`, `receipts`,
 `receipt_items`, `batches`, `sales`, `sale_items`, `sale_item_allocations`, `writeoffs`,
-`writeoff_items`, `stock_movements`, `payments`, `payment_allocations`, `debts`, `profits`,
+`writeoff_items`, `inventories`, `inventory_items`, `stock_movements`, `payments`,
+`payment_allocations`, `debts`, `profits`,
 `expenses`, `cash_sessions`, `cash_entries`, `users`.
 
 **Operations beyond CRUD:**
@@ -144,6 +153,8 @@ PATCH /api/users/{id}/password
 POST /api/receipts/{id}/change_status    draft -> posted -> cancelled
 POST /api/sales/{id}/change_status
 POST /api/writeoffs/{id}/change_status
+POST /api/inventories/{id}/change_status  seller counts, owner posts
+POST /api/inventories/{id}/fill           lines for every batch with stock, optionally by category
 POST /api/payments/{id}/change_status
 POST /api/payments/{id}/auto_allocate    spread over the oldest debts and post
 

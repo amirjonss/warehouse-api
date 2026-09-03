@@ -15,6 +15,7 @@ use App\Repository\CategoryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
@@ -36,9 +37,11 @@ class Category
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
+    #[Groups(['inventories:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'string')]
+    #[Groups(['inventories:read'])]
     #[Assert\NotBlank]
     #[Assert\Length(max: 255)]
     private ?string $name = null;

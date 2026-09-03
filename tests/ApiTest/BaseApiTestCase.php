@@ -11,6 +11,7 @@ use App\Component\Account\Enums\CashAccountKind;
 use App\Component\Product\Enums\Currency;
 use App\Entity\Batch;
 use App\Entity\CashAccount;
+use App\Entity\Category;
 use App\Entity\Client as ClientEntity;
 use App\Entity\Product;
 use App\Entity\Sale;
@@ -112,6 +113,19 @@ class BaseApiTestCase extends ApiTestCase
     protected function supplierIri(string $name): string
     {
         return $this->findIriBy(Supplier::class, ['name' => $name]);
+    }
+
+    protected function categoryIri(string $name): string
+    {
+        return $this->findIriBy(Category::class, ['name' => $name]);
+    }
+
+    protected function batchIri(string $productName, string $batchNumber): string
+    {
+        return $this->findIriBy(Batch::class, [
+            'number' => $batchNumber,
+            'product' => (int) basename($this->productIri($productName)),
+        ]);
     }
 
     // ---------------------------------------------------------------------
@@ -217,6 +231,74 @@ class BaseApiTestCase extends ApiTestCase
         ]);
     }
 
+    protected function createDraftInventory(
+        Client $client,
+        ?string $note = null,
+        ?string $categoryName = null,
+        string $docDate = '2026-08-03',
+    ): string {
+        $payload = ['docDate' => $docDate, 'note' => $note];
+        if ($categoryName !== null) {
+            $payload['category'] = $this->categoryIri($categoryName);
+        }
+
+        return $this->createAndGetIri($client, '/api/inventories', $payload);
+    }
+
+    /**
+     * One counted batch. A null quantity is the "line created, nobody counted yet" state.
+     */
+    protected function addInventoryItem(
+        Client $client,
+        string $inventoryIri,
+        string $productName,
+        string $batchNumber,
+        ?string $actualQty = null,
+    ): array {
+        $response = $client->request(Request::METHOD_POST, '/api/inventory_items', [
+            'body' => json_encode([
+                'inventory' => $inventoryIri,
+                'product' => $this->productIri($productName),
+                'batch' => $this->batchIri($productName, $batchNumber),
+                'actualQty' => $actualQty,
+            ]),
+        ]);
+
+        return $response->toArray(false);
+    }
+
+    protected function fillInventory(
+        Client $client,
+        string $inventoryIri,
+        ?string $categoryName = null,
+        bool $includeZeroStock = false,
+    ): array {
+        $payload = ['includeZeroStock' => $includeZeroStock];
+        if ($categoryName !== null) {
+            $payload['category'] = (int) basename($this->categoryIri($categoryName));
+        }
+
+        $response = $client->request(Request::METHOD_POST, $inventoryIri . '/fill', [
+            'body' => json_encode($payload),
+            'headers' => ['content-type' => self::JSON_LD],
+        ]);
+
+        return $response->toArray(false);
+    }
+
+    /**
+     * The lines of one count sheet, oldest first.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function inventoryItems(Client $client, string $inventoryIri): array
+    {
+        return $client->request(
+            Request::METHOD_GET,
+            '/api/inventory_items?inventory=' . basename($inventoryIri) . '&order[id]=asc'
+        )->toArray(false)['member'] ?? [];
+    }
+
     /**
      * FIFO layers of one sale line.
      *
@@ -258,8 +340,8 @@ class BaseApiTestCase extends ApiTestCase
     ): array {
         $productIri = $this->productIri($productName);
 
-        // Resolved straight from the database rather than over HTTP: /api/batches is
-        // admin-only, and this helper is also used to drive the "wrong role" cases.
+        // Resolved straight from the database rather than over HTTP: it keeps the helper
+        // usable from the "wrong role" cases, which must not depend on a readable endpoint.
         $batchIri = $this->findIriBy(Batch::class, [
             'number' => $batchNumber,
             'product' => (int) basename($productIri),

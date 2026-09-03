@@ -83,13 +83,13 @@ class Product implements DeletedAtSettableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['writeoffs:read', 'profits:read', 'stock-movements:read'])]
+    #[Groups(['writeoffs:read', 'profits:read', 'stock-movements:read', 'inventories:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 255)]
-    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'sale-item:read', 'writeoffs:read', 'profits:read', 'stock-movements:read'])]
+    #[Groups(['batch:read', 'receipt-item:read', 'receipts:read', 'sales:read', 'sale-item:read', 'writeoffs:read', 'profits:read', 'stock-movements:read', 'inventories:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(inversedBy: 'products')]
@@ -102,7 +102,7 @@ class Product implements DeletedAtSettableInterface
     private ?Currency $currency = null;
 
     #[ORM\Column(enumType: UnitCode::class)]
-    #[Groups(['sale-item:read'])]
+    #[Groups(['sale-item:read', 'inventories:read'])]
     #[Assert\NotNull]
     private ?UnitCode $unit = null;
 
