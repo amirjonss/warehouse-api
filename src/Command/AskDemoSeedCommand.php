@@ -8,20 +8,26 @@ use App\Component\Core\Enums\DocStatus;
 use App\Component\Core\Enums\PaymentMethod;
 use App\Component\Account\Enums\CashAccountKind;
 use App\Component\Expense\ExpenseFactory;
+use App\Component\Inventory\InventoryFactory;
+use App\Component\MoneyTransfer\MoneyTransferFactory;
 use App\Component\Payment\PaymentFactory;
 use App\Component\Product\Enums\Currency;
 use App\Component\Product\Enums\UnitCode;
 use App\Component\Receipt\ReceiptFactory;
 use App\Component\ReceiptItem\ReceiptItemFactory;
 use App\Component\Sale\SaleFactory;
+use App\Component\SupplierPayment\SupplierPaymentFactory;
 use App\Component\User\UserFactory;
 use App\Component\User\UserManager;
 use App\Component\Writeoff\WriteoffFactory;
 use App\Component\WriteoffItem\WriteoffItemFactory;
+use App\Entity\CashAccount;
 use App\Entity\CashSession;
 use App\Entity\Category;
 use App\Entity\Client;
 use App\Entity\ExchangeRate;
+use App\Entity\Inventory;
+use App\Entity\MoneyTransfer;
 use App\Entity\Product;
 use App\Entity\Receipt;
 use App\Entity\ReceiptItem;
@@ -29,6 +35,7 @@ use App\Entity\Payment;
 use App\Entity\Sale;
 use App\Entity\SaleItem;
 use App\Entity\Supplier;
+use App\Entity\SupplierPayment;
 use App\Entity\User;
 use App\Entity\WriteoffItem;
 use App\Repository\BatchRepository;
@@ -36,18 +43,25 @@ use App\Repository\CashAccountRepository;
 use App\Repository\CashSessionRepository;
 use App\Repository\ClientRepository;
 use App\Repository\StockMovementRepository;
+use App\Repository\SupplierRepository;
 use App\Repository\UserRepository;
 use App\Service\CashAccountOpeningBalanceService;
 use App\Service\CashExpenseService;
 use App\Service\CashHandoverService;
 use App\Service\CashSessionCloseService;
 use App\Service\CashSessionOpenService;
+use App\Service\InventoryChangeStatusService;
+use App\Service\InventoryFillService;
+use App\Service\MoneyTransferChangeStatusService;
+use App\Service\MoneyTransferValidationService;
 use App\Service\PaymentAutoAllocationService;
 use App\Service\PaymentChangeStatusService;
 use App\Service\ReceiptItemValidationService;
 use App\Service\SaleChangeStatusService;
 use App\Service\SaleItemAllocationService;
 use App\Service\SaleItemValidationService;
+use App\Service\SupplierPaymentAutoAllocationService;
+use App\Service\SupplierPaymentValidationService;
 use App\Service\WriteoffChangeStatusService;
 use App\Service\WriteoffItemValidationService;
 use App\Service\ReceiptChangeStatusService;
@@ -153,14 +167,21 @@ class AskDemoSeedCommand extends Command
     private const CLIENT_TYPES = ['Кондитерская', 'Пекарня', 'Кафе', 'Ресторан', 'Супермаркет', 'Магазин', 'Столовая', 'Мини-маркет', 'Продмаг', 'Точка общепита'];
     private const CLIENT_NAMES = ['Дилноза', 'Азиз', 'Санжар', 'Мадина', 'Шахноза', 'Отабек', 'Нодира', 'Жасур', 'Гулноза', 'Бахтиёр', 'Фарход', 'Зарина', 'Нигора', 'Хуршид', 'Малика', 'Тимур', 'Севара', 'Улуғбек', 'Феруза', 'Шерзод', 'Наргиза', 'Диёр', 'Камола', 'Рустам', 'Ойгуль', 'Бекзод', 'Дилдора', 'Акмал', 'Гулбахор', 'Элёр'];
 
-    /** Demo sellers. The password is an option, never a constant. */
-    private const SELLER_DEFS = [
-        ['sales1@example.com', 'Дилноза', 'Каримова'],
-        ['sales2@example.com', 'Отабек', 'Раҳимов'],
-        ['sales3@example.com', 'Шахноза', 'Юсупова'],
-        ['sales4@example.com', 'Жасур', 'Тошматов'],
-        ['sales5@example.com', 'Феруза', 'Абдуллаева'],
-    ];
+    /**
+     * The demo runs against exactly two fixed accounts: the admin who owns every
+     * non-sales document, and the one seller whose cash floats and sales carry the
+     * whole money side. Fixed on purpose — this is what the task asked for, not a
+     * default that a CLI option is meant to override.
+     */
+    private const ADMIN_EMAIL = 'admin@example.com';
+    private const ADMIN_PASSWORD = 'passwd';
+    private const ADMIN_FIRST_NAME = 'Админ';
+    private const ADMIN_LAST_NAME = 'Владелец';
+
+    private const SELLER_EMAIL = 'user@example.com';
+    private const SELLER_PASSWORD = 'passwd';
+    private const SELLER_FIRST_NAME = 'Продавец';
+    private const SELLER_LAST_NAME = 'Демо';
 
     private const EXPENSE_REASONS = [
         'Бензин для доставки', 'Обед водителю', 'Ремонт погрузчика', 'Упаковочный материал',
@@ -202,6 +223,7 @@ class AskDemoSeedCommand extends Command
         private BatchRepository $batchRepository,
         private StockMovementRepository $stockMovementRepository,
         private ClientRepository $clientRepository,
+        private SupplierRepository $supplierRepository,
         private CashSessionRepository $cashSessionRepository,
         private CashAccountRepository $cashAccountRepository,
         private CashAccountOpeningBalanceService $cashAccountOpeningBalanceService,
@@ -215,6 +237,15 @@ class AskDemoSeedCommand extends Command
         private CashSessionOpenService $cashSessionOpenService,
         private CashSessionCloseService $cashSessionCloseService,
         private CashHandoverService $cashHandoverService,
+        private InventoryFactory $inventoryFactory,
+        private InventoryFillService $inventoryFillService,
+        private InventoryChangeStatusService $inventoryChangeStatusService,
+        private SupplierPaymentFactory $supplierPaymentFactory,
+        private SupplierPaymentValidationService $supplierPaymentValidationService,
+        private SupplierPaymentAutoAllocationService $supplierPaymentAutoAllocationService,
+        private MoneyTransferFactory $moneyTransferFactory,
+        private MoneyTransferValidationService $moneyTransferValidationService,
+        private MoneyTransferChangeStatusService $moneyTransferChangeStatusService,
     ) {
         parent::__construct();
     }
@@ -229,10 +260,11 @@ class AskDemoSeedCommand extends Command
             ->addOption('receipts', null, InputOption::VALUE_REQUIRED, 'How many receipts', 100)
             ->addOption('sales', null, InputOption::VALUE_REQUIRED, 'How many sales', 100)
             ->addOption('writeoffs', null, InputOption::VALUE_REQUIRED, 'How many writeoffs', 60)
-            ->addOption('sellers', null, InputOption::VALUE_REQUIRED, 'How many demo sellers to create/use', 5)
-            ->addOption('seller-password', null, InputOption::VALUE_REQUIRED, 'Password for the demo sellers', 'string')
-            ->addOption('sessions', null, InputOption::VALUE_REQUIRED, 'Cash sessions per seller over the whole period', 9)
+            ->addOption('inventories', null, InputOption::VALUE_REQUIRED, 'How many stocktakes (inventories)', 10)
+            ->addOption('sessions', null, InputOption::VALUE_REQUIRED, 'Cash sessions for the seller over the whole period', 9)
             ->addOption('expenses', null, InputOption::VALUE_REQUIRED, 'How many company-wide expenses (outside any float)', 80)
+            ->addOption('supplier-payments', null, InputOption::VALUE_REQUIRED, 'How many payments to suppliers', 80)
+            ->addOption('transfers', null, InputOption::VALUE_REQUIRED, 'How many transfers between company accounts', 20)
             ->addOption('months', null, InputOption::VALUE_REQUIRED, 'How many months back documents are spread over', 12);
     }
 
@@ -248,39 +280,37 @@ class AskDemoSeedCommand extends Command
             'receipts' => (int) $input->getOption('receipts'),
             'sales' => (int) $input->getOption('sales'),
             'writeoffs' => (int) $input->getOption('writeoffs'),
-            'sellers' => (int) $input->getOption('sellers'),
+            'inventories' => (int) $input->getOption('inventories'),
             'sessions' => (int) $input->getOption('sessions'),
             'expenses' => (int) $input->getOption('expenses'),
+            'supplier_payments' => (int) $input->getOption('supplier-payments'),
+            'transfers' => (int) $input->getOption('transfers'),
         ];
         $months = (int) $input->getOption('months');
-        $sellerPassword = (string) $input->getOption('seller-password');
-
-        $actor = $this->findFirstAdmin();
-        if ($actor === null) {
-            $io->error('No ROLE_ADMIN user found. Create one first with php bin/console ask:users:create.');
-            return Command::FAILURE;
-        }
 
         $io->title('Демо-данные склада');
         $io->table(['Что', 'Сколько'], array_map(fn ($k, $v) => [$k, $v], array_keys($counts), $counts));
-        $io->text(sprintf('От имени: %s. Документы будут проведены (posted), даты — за последние %d мес.', $actor->getEmail(), $months));
+        $io->text(sprintf(
+            'Аккаунты: %s / %s и %s / %s. Документы будут проведены (posted), даты — за последние %d мес.',
+            self::ADMIN_EMAIL,
+            self::ADMIN_PASSWORD,
+            self::SELLER_EMAIL,
+            self::SELLER_PASSWORD,
+            $months
+        ));
 
         if (!$io->confirm('Начать генерацию?', true)) {
             return Command::SUCCESS;
         }
 
-        $this->impersonate($actor);
-
         $windowEnd = new DateTime();
         $windowStart = (clone $windowEnd)->modify("-{$months} months");
 
-        $io->section('Продавцы');
-        $sellers = $this->seedSellers($io, $counts['sellers'], $sellerPassword);
-        if ($sellers === []) {
-            $io->error('Не удалось получить ни одного продавца.');
+        $io->section('Аккаунты');
+        [$actor, $seller] = $this->seedUsers($io);
+        $sellers = [$seller];
 
-            return Command::FAILURE;
-        }
+        $this->impersonate($actor);
 
         $io->section('Категории');
         $categories = $this->seedCategories($io, $counts['categories']);
@@ -310,6 +340,9 @@ class AskDemoSeedCommand extends Command
         $this->impersonate($actor);
         $this->seedWriteoffs($io, $actor, $counts['writeoffs'], $windowStart, $windowEnd);
 
+        $io->section('Инвентаризации');
+        $this->seedInventories($io, $actor, $categories, count($products), $counts['inventories'], $windowStart, $windowEnd);
+
         $io->section('Начальные остатки по счетам');
         $this->seedOpeningBalances($io, $actor);
 
@@ -319,6 +352,13 @@ class AskDemoSeedCommand extends Command
         $io->section('Касса: смены, платежи, сдачи');
         $this->seedCashFloats($io, $actor, $sellers, $counts['sessions'], $windowStart, $windowEnd);
 
+        $io->section('Оплаты поставщикам');
+        $this->impersonate($actor);
+        $this->seedSupplierPayments($io, $actor, $counts['supplier_payments'], $windowStart, $windowEnd);
+
+        $io->section('Переводы между счетами');
+        $this->seedMoneyTransfers($io, $actor, $counts['transfers'], $windowStart, $windowEnd);
+
         $io->section('Исторические даты');
         $this->alignTimestamps($io);
 
@@ -327,15 +367,47 @@ class AskDemoSeedCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function findFirstAdmin(): ?User
+    /**
+     * The two fixed accounts the whole demo runs on. Reused on a rerun rather than
+     * recreated, so the credentials stay valid across regenerations.
+     *
+     * @return array{0: User, 1: User} admin, seller
+     */
+    private function seedUsers(SymfonyStyle $io): array
     {
-        foreach ($this->userRepository->findAll() as $user) {
-            if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
-                return $user;
-            }
+        $admin = $this->userRepository->findOneByEmail(self::ADMIN_EMAIL);
+        if ($admin === null) {
+            $admin = $this->userFactory->create(
+                self::ADMIN_EMAIL,
+                self::ADMIN_PASSWORD,
+                ['ROLE_ADMIN'],
+                self::ADMIN_FIRST_NAME,
+                self::ADMIN_LAST_NAME
+            );
+            $this->userManager->save($admin, true);
         }
 
-        return null;
+        $seller = $this->userRepository->findOneByEmail(self::SELLER_EMAIL);
+        if ($seller === null) {
+            $seller = $this->userFactory->create(
+                self::SELLER_EMAIL,
+                self::SELLER_PASSWORD,
+                ['ROLE_SALES'],
+                self::SELLER_FIRST_NAME,
+                self::SELLER_LAST_NAME
+            );
+            $this->userManager->save($seller, true);
+        }
+
+        $io->table(
+            ['Роль', 'Email', 'Пароль'],
+            [
+                ['admin', $admin->getEmail(), self::ADMIN_PASSWORD],
+                ['sales', $seller->getEmail(), self::SELLER_PASSWORD],
+            ]
+        );
+
+        return [$admin, $seller];
     }
 
     /** Providers/services read the acting user from the Security token — fake one for this CLI process. */
@@ -760,38 +832,89 @@ class AskDemoSeedCommand extends Command
     }
 
     /**
-     * Demo sellers are reused if they already exist: rerunning the seed must not fail on a
-     * taken email, and the password is only applied to the ones it creates.
+     * A stocktake per period: mostly a full-catalogue count, occasionally scoped to one
+     * category when the catalogue is too big for a single sheet (InventoryFillService
+     * caps a fill at 500 lines). Most lines match the ledger exactly; a few are given a
+     * small discrepancy so the resulting ADJUST movements exercise both the shortage and
+     * the surplus branch of InventoryChangeStatusService.
      *
-     * @return User[]
+     * @param Category[] $categories
      */
-    private function seedSellers(SymfonyStyle $io, int $count, string $password): array
-    {
-        $sellers = [];
-        $created = 0;
+    private function seedInventories(
+        SymfonyStyle $io,
+        User $actor,
+        array $categories,
+        int $totalProducts,
+        int $count,
+        DateTime $windowStart,
+        DateTime $windowEnd,
+    ): void {
+        if ($categories === []) {
+            $io->text('Нет категорий — инвентаризации пропущены.');
 
-        foreach (array_slice(self::SELLER_DEFS, 0, $count) as [$email, $firstName, $lastName]) {
-            $user = $this->userRepository->findOneByEmail($email);
-
-            if ($user === null) {
-                $user = $this->userFactory->create($email, $password, ['ROLE_SALES'], $firstName, $lastName);
-                $this->userManager->save($user, true);
-                $created++;
-            }
-
-            $sellers[] = $user;
+            return;
         }
 
-        $io->text(sprintf('Продавцов создано: %d, всего задействовано: %d', $created, count($sellers)));
-        $io->table(
-            ['Email', 'Имя', 'Пароль'],
-            array_map(
-                fn (User $u) => [$u->getEmail(), trim($u->getFirstName() . ' ' . $u->getLastName()), $password],
-                $sellers
-            )
-        );
+        $progress = $io->createProgressBar($count);
+        $created = 0;
 
-        return $sellers;
+        for ($i = 0; $i < $count; $i++) {
+            $docDate = $this->randomDate($windowStart, $windowEnd);
+            $category = $totalProducts <= InventoryFillService::MAX_LINES && random_int(1, 3) === 1
+                ? null
+                : $this->randomFrom($categories);
+
+            $inventory = $this->inventoryFactory->create($actor, 'Плановая инвентаризация', $category, $docDate);
+            $this->entityManager->persist($inventory);
+            $this->entityManager->flush();
+
+            try {
+                $this->inventoryFillService->fill($inventory, $category?->getId(), false);
+            } catch (\Throwable) {
+                $this->entityManager->remove($inventory);
+                $this->entityManager->flush();
+                continue;
+            }
+
+            if (count($inventory->getItems()) === 0) {
+                $this->entityManager->remove($inventory);
+                $this->entityManager->flush();
+                continue;
+            }
+
+            foreach ($inventory->getItems() as $item) {
+                $item->setActualQty($this->countedQty($item->getExpectedQty()));
+            }
+            $this->entityManager->flush();
+
+            $inventory->setStatus(DocStatus::POSTED);
+            try {
+                $this->inventoryChangeStatusService->changeStatus($inventory);
+            } catch (\Throwable) {
+                $this->entityManager->clear();
+                $this->impersonate($actor);
+                continue;
+            }
+
+            $created++;
+            $progress->advance();
+        }
+        $progress->finish();
+        $io->newLine(2);
+        $io->text(sprintf('Проведено инвентаризаций: %d', $created));
+    }
+
+    /** Four lines out of five count exactly; the rest drift by up to 10% either way. */
+    private function countedQty(string $expectedQty): string
+    {
+        if (random_int(1, 5) > 1) {
+            return $expectedQty;
+        }
+
+        $delta = (float) $expectedQty * random_int(-10, 10) / 100;
+        $counted = max(0.0, (float) $expectedQty + $delta);
+
+        return number_format(round($counted), 0, '.', '') . '.000';
     }
 
     /** One quote a week, following the same drift the documents use. */
@@ -1206,6 +1329,212 @@ class AskDemoSeedCommand extends Command
     }
 
     /**
+     * Mirrors collectPayments(), but against the payable side: a supplier who is still owed
+     * something gets a chunk of it paid off the company's own accounts, no cash session
+     * involved — SupplierPaymentChangeStatusService debits the account directly.
+     */
+    private function seedSupplierPayments(SymfonyStyle $io, User $actor, int $count, DateTime $windowStart, DateTime $windowEnd): void
+    {
+        $progress = $io->createProgressBar($count);
+        $created = 0;
+        $attempts = 0;
+        $maxAttempts = $count * 5;
+
+        while ($created < $count && $attempts < $maxAttempts) {
+            $attempts++;
+
+            $currency = random_int(1, 4) === 1 ? Currency::USD : Currency::UZS;
+            $candidate = $this->supplierWithDebt($currency);
+            if ($candidate === null) {
+                continue;
+            }
+            [$supplier, $payable] = $candidate;
+
+            $amount = $this->portionOf($payable, $currency);
+            if (bccomp($amount, '0', 2) <= 0) {
+                continue;
+            }
+
+            // There is no dollar card or bank account, same restriction as client payments.
+            $kind = $currency === Currency::USD
+                ? CashAccountKind::CASH
+                : $this->randomFrom([CashAccountKind::CASH, CashAccountKind::CARD, CashAccountKind::BANK]);
+            $account = $this->cashAccountRepository->findByKindAndCurrency($kind, $currency);
+            if ($account === null) {
+                continue;
+            }
+
+            $prototype = new SupplierPayment();
+            $prototype->setAccount($account)->setCurrency($currency);
+
+            try {
+                $this->supplierPaymentValidationService->validate($prototype);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $payment = $this->supplierPaymentFactory->create(
+                $actor,
+                $supplier,
+                $account,
+                $amount,
+                $currency,
+                '',
+                $this->randomDate($windowStart, $windowEnd)
+            );
+            $this->entityManager->persist($payment);
+            $this->entityManager->flush();
+
+            try {
+                $this->supplierPaymentAutoAllocationService->autoAllocateAndPost($payment);
+                $created++;
+                $progress->advance();
+            } catch (\Throwable) {
+                $this->discardSupplierPayment($payment);
+            }
+        }
+        $progress->finish();
+        $io->newLine(2);
+        $io->text(sprintf('Проведено оплат поставщикам: %d', $created));
+    }
+
+    /**
+     * A supplier who still owes something in this currency, plus how much of that payable
+     * sits on receipts old enough to be paid now. Mirror of clientWithDebt().
+     *
+     * @return array{0: Supplier, 1: string}|null
+     */
+    private function supplierWithDebt(Currency $currency): ?array
+    {
+        $column = $currency === Currency::USD ? 'debt_usd' : 'debt_uzs';
+
+        $row = $this->entityManager->getConnection()->fetchAssociative(
+            sprintf(
+                'SELECT id, %s AS debt FROM suppliers WHERE %s > 0 ORDER BY random() LIMIT 1',
+                $column,
+                $column
+            )
+        );
+
+        if ($row === false) {
+            return null;
+        }
+
+        $supplier = $this->supplierRepository->find((int) $row['id']);
+
+        return $supplier === null ? null : [$supplier, (string) $row['debt']];
+    }
+
+    private function discardSupplierPayment(SupplierPayment $payment): void
+    {
+        try {
+            $this->entityManager->remove($payment);
+            $this->entityManager->flush();
+        } catch (\Throwable) {
+            $this->entityManager->clear();
+        }
+    }
+
+    /**
+     * Money moving between the company's own accounts: cash into the bank, card takings
+     * swept into cash, or one currency exchanged for another at the day's rate. Unlike
+     * every other document here this one has no natural "who owes what" to draw from, so
+     * the pair of accounts is picked at random and the amount is a slice of whichever one
+     * is being drawn down.
+     */
+    private function seedMoneyTransfers(SymfonyStyle $io, User $actor, int $count, DateTime $windowStart, DateTime $windowEnd): void
+    {
+        $progress = $io->createProgressBar($count);
+        $created = 0;
+        $attempts = 0;
+        $maxAttempts = $count * 5;
+
+        while ($created < $count && $attempts < $maxAttempts) {
+            $attempts++;
+
+            [$from, $to] = $this->randomAccountPair();
+            if ($from === null || $to === null) {
+                break;
+            }
+
+            $balance = $from->getBalance() ?? '0';
+            if (bccomp($balance, '1', 2) <= 0) {
+                continue;
+            }
+
+            $amountSent = $this->portionOf($balance, $from->getCurrency(), 5, 30);
+            if (bccomp($amountSent, '0', 2) <= 0) {
+                continue;
+            }
+
+            $docDate = $this->randomDate($windowStart, $windowEnd);
+
+            if ($from->getCurrency() === $to->getCurrency()) {
+                $rate = null;
+                $amountReceived = $amountSent;
+            } else {
+                $rate = $this->rateForDate($docDate, $windowStart, $windowEnd);
+                $amountReceived = $to->getCurrency() === Currency::USD
+                    ? bcdiv($amountSent, $rate, 2)
+                    : bcmul($amountSent, $rate, 2);
+            }
+
+            $prototype = new MoneyTransfer();
+            $prototype
+                ->setFromAccount($from)
+                ->setToAccount($to)
+                ->setAmountSent($amountSent)
+                ->setAmountReceived($amountReceived)
+                ->setRate($rate);
+
+            try {
+                $this->moneyTransferValidationService->validate($prototype);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $transfer = $this->moneyTransferFactory->create(
+                $actor,
+                $from,
+                $to,
+                $amountSent,
+                $amountReceived,
+                $rate,
+                '',
+                $docDate
+            );
+            $this->entityManager->persist($transfer);
+            $this->entityManager->flush();
+
+            $transfer->setStatus(DocStatus::POSTED);
+            try {
+                $this->moneyTransferChangeStatusService->changeStatus($transfer);
+                $created++;
+                $progress->advance();
+            } catch (\Throwable) {
+                $this->entityManager->remove($transfer);
+                $this->entityManager->flush();
+            }
+        }
+        $progress->finish();
+        $io->newLine(2);
+        $io->text(sprintf('Проведено переводов: %d', $created));
+    }
+
+    /** @return array{0: ?CashAccount, 1: ?CashAccount} two distinct accounts, or [null, null] if there aren't two */
+    private function randomAccountPair(): array
+    {
+        $accounts = $this->cashAccountRepository->findAll();
+        if (count($accounts) < 2) {
+            return [null, null];
+        }
+
+        shuffle($accounts);
+
+        return [$accounts[0], $accounts[1]];
+    }
+
+    /**
      * Ledger rows carry the moment they were written, which for a seed is "now" for all of
      * them at once. Pull each row back onto the date of the document that produced it, so
      * charts and period filters have a year of history to show.
@@ -1220,12 +1549,23 @@ class AskDemoSeedCommand extends Command
             'UPDATE payments SET created_at = doc_date, posted_at = CASE WHEN posted_at IS NULL THEN NULL ELSE doc_date::timestamp END',
             'UPDATE writeoffs SET created_at = doc_date',
             'UPDATE expenses SET created_at = doc_date',
+            'UPDATE inventories SET created_at = doc_date, posted_at = CASE WHEN posted_at IS NULL THEN NULL ELSE doc_date::timestamp END',
+            'UPDATE supplier_payments SET created_at = doc_date, posted_at = CASE WHEN posted_at IS NULL THEN NULL ELSE doc_date::timestamp END',
+            'UPDATE money_transfers SET created_at = doc_date, posted_at = CASE WHEN posted_at IS NULL THEN NULL ELSE doc_date::timestamp END',
             'UPDATE profits p SET occurred_at = s.doc_date FROM sales s WHERE s.id = p.sale_id',
             'UPDATE debts d SET occurred_at = p.doc_date FROM payments p WHERE p.id = d.payment_id',
             'UPDATE debts d SET occurred_at = s.doc_date FROM sales s WHERE s.id = d.sale_id AND d.payment_id IS NULL',
+            'UPDATE supplier_debts sd SET occurred_at = sp.doc_date FROM supplier_payments sp WHERE sp.id = sd.supplier_payment_id',
+            'UPDATE supplier_debts sd SET occurred_at = r.doc_date FROM receipts r WHERE r.id = sd.receipt_id AND sd.supplier_payment_id IS NULL',
             "UPDATE stock_movements m SET occurred_at = r.doc_date FROM receipts r WHERE m.doc_type = 'receipt' AND r.id = m.doc_id",
             "UPDATE stock_movements m SET occurred_at = s.doc_date FROM sales s WHERE m.doc_type = 'sale' AND s.id = m.doc_id",
             "UPDATE stock_movements m SET occurred_at = w.doc_date FROM writeoffs w WHERE m.doc_type = 'writeoff' AND w.id = m.doc_id",
+            "UPDATE stock_movements m SET occurred_at = i.doc_date FROM inventories i WHERE m.doc_type = 'inventory' AND i.id = m.doc_id",
+            'UPDATE account_entries e SET occurred_at = ce.occurred_at FROM cash_entries ce WHERE e.cash_entry_id = ce.id',
+            'UPDATE account_entries e SET occurred_at = p.doc_date FROM payments p WHERE e.payment_id = p.id',
+            'UPDATE account_entries e SET occurred_at = ex.doc_date FROM expenses ex WHERE e.expense_id = ex.id',
+            'UPDATE account_entries e SET occurred_at = mt.doc_date FROM money_transfers mt WHERE e.money_transfer_id = mt.id',
+            'UPDATE account_entries e SET occurred_at = sp.doc_date FROM supplier_payments sp WHERE e.supplier_payment_id = sp.id',
         ];
 
         foreach ($statements as $sql) {

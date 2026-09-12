@@ -245,18 +245,26 @@ exactly as real usage would produce them, including the cash floats.
 ```bash
 docker compose exec php bin/console ask:demo:seed \
   --categories=20 --products=260 --clients=140 --suppliers=60 \
-  --receipts=320 --sales=1400 --writeoffs=140 \
-  --sellers=5 --sessions=9 --expenses=220 --months=12
+  --receipts=320 --sales=1400 --writeoffs=140 --inventories=10 \
+  --sessions=9 --expenses=220 --supplier-payments=80 --transfers=20 --months=12
 ```
 
-It creates the demo sellers itself (`sales1@example.com` … `sales5@example.com`, password from
-`--seller-password`, default `string`) and reuses them on a rerun. An administrator must already
-exist.
+It creates the two demo accounts itself and reuses them on a rerun — no administrator needs to
+exist beforehand:
 
-Each seller's year is cut into consecutive float periods, and every period is replayed in the only
+| Role  | Email               | Password |
+|-------|---------------------|----------|
+| admin | `admin@example.com` | `passwd` |
+| sales | `user@example.com`  | `passwd` |
+
+The seller's year is cut into consecutive float periods, and every period is replayed in the only
 order the services accept — open, collect, spend, hand over, close — leaving the last one open with
-an unconfirmed hand-in. Timestamps are rewritten at the end: every factory stamps "now", so without
-that pass a year of documents would carry today's date in every ledger.
+an unconfirmed hand-in. Stocktakes (`ask:demo:seed`'s `--inventories`) count the whole catalogue (or
+one category, once it is too big for a single sheet) and post with a mix of exact counts and small
+discrepancies, so both the shortage and the surplus side of the adjustment show up. Supplier
+payments and transfers between the company's own accounts (cash/card/bank, including currency
+exchange) round out the money side. Timestamps are rewritten at the end: every factory stamps "now",
+so without that pass a year of documents would carry today's date in every ledger.
 
 Expect roughly an hour for the volumes above; the identity map is never cleared, so the sales phase
 slows down as it goes.
